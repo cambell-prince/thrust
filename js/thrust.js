@@ -22,6 +22,7 @@ var jumpTimer = 0;
 var cursors;
 var jumpButton;
 var bg;
+var shipTween;
 
 function create() {
 
@@ -61,6 +62,7 @@ function create() {
     ship.body.maxVelocity.set(200);
 
     game.camera.follow(ship);
+    tween = game.add.tween(ship);
 
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
@@ -69,7 +71,13 @@ function create() {
 
 function update() {
 
-    game.physics.arcade.collide(ship, layer);
+    game.physics.arcade.collide(ship, layer, function(ship, layer) {
+		if (ship.body.onFloor()) { // TODO gate this
+			ship.body.angularVelocity = 0;
+			tween.to({ angle: -90}, 250);
+			tween.start();
+		}
+	});
 
     // Left / Right angular control
     if (cursors.left.isDown)
