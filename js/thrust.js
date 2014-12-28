@@ -48,7 +48,7 @@ function create() {
 
     layer.resizeWorld();
 
-    game.physics.arcade.gravity.y = 30;
+    game.physics.arcade.gravity.y = 40;
 
     ship = game.add.sprite(100, 80, 'ship');
     game.physics.enable(ship, Phaser.Physics.ARCADE);
@@ -57,7 +57,7 @@ function create() {
     ship.body.collideWorldBounds = true;
     ship.body.setSize(46, 46, 10, 0);
     ship.anchor.set(0.70, 0.5);
-    ship.body.drag.set(20);
+    ship.body.drag.set(15);
     ship.body.maxVelocity.set(200);
 
     game.camera.follow(ship);
@@ -90,7 +90,7 @@ function update() {
 	// Thrust control
     if (cursors.up.isDown)
     {
-        game.physics.arcade.accelerationFromRotation(ship.rotation, 100, ship.body.acceleration);
+        game.physics.arcade.accelerationFromRotation(ship.rotation, 200, ship.body.acceleration);
 		ship.frame = 2;
     }
     else
