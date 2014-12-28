@@ -60,10 +60,6 @@ function create() {
     ship.body.drag.set(20);
     ship.body.maxVelocity.set(200);
 
-//    ship.animations.add('left', [0, 1, 2, 3], 10, true);
-//    ship.animations.add('turn', [4], 20, true);
-//    ship.animations.add('right', [5, 6, 7, 8], 10, true);
-
     game.camera.follow(ship);
 
     cursors = game.input.keyboard.createCursorKeys();
@@ -79,50 +75,29 @@ function update() {
     if (cursors.left.isDown)
     {
 		ship.body.angularVelocity = -300;
-//        ship.body.velocity.x = -150;
-
-        if (facing != 'left')
-        {
-			ship.frame = 1;
-            facing = 'left';
-//            ship.animations.play('left');
-        }
+		ship.frame = 1;
     }
     else if (cursors.right.isDown)
     {
 		ship.body.angularVelocity = 300;
-  //      ship.body.velocity.x = 150;
-
-        if (facing != 'right')
-        {
-			ship.frame = 0;
-            facing = 'right';
-//            ship.animations.play('right');
-        }
+		ship.frame = 0;
     }
     else
     {
 		ship.body.angularVelocity = 0;
-		if (facing != 'up' && facing != 'idle') {
-			ship.frame = 3;
-			facing = 'idle';
-		}
+		ship.frame = 3;
 	}
 	// Thrust control
     if (cursors.up.isDown)
     {
         game.physics.arcade.accelerationFromRotation(ship.rotation, 100, ship.body.acceleration);
-        if (facing != 'up') {
-			ship.frame = 2;
-			facing = 'up';
-		}
+		ship.frame = 2;
     }
     else
     {
         ship.body.acceleration.set(0);
-        if (facing != 'left' && facing != 'right' && facing != 'idle') {
+		if (ship.frame > 1) {
 			ship.frame = 3;
-			facing = 'idle';
 		}
     }
 
