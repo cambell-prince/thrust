@@ -72,7 +72,7 @@ function create() {
 function update() {
 
     game.physics.arcade.collide(ship, layer, function(ship, layer) {
-		if (ship.body.onFloor()) { // TODO gate this
+		if (!tween.isRunning && ship.angle != -90 && ship.body.onFloor()) {
 			ship.body.angularVelocity = 0;
 			tween.to({ angle: -90}, 250);
 			tween.start();
