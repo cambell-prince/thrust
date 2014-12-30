@@ -62,7 +62,7 @@ function create() {
     ship.body.maxVelocity.set(200);
 
     game.camera.follow(ship);
-    tween = game.add.tween(ship);
+    shipTween = game.add.tween(ship);
 
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
@@ -72,10 +72,12 @@ function create() {
 function update() {
 
     game.physics.arcade.collide(ship, layer, function(ship, layer) {
-		if (!tween.isRunning && ship.angle != -90 && ship.body.onFloor()) {
+		if (!shipTween.isRunning && ship.angle != -90 && ship.body.onFloor()) {
 			ship.body.angularVelocity = 0;
-			tween.to({ angle: -90}, 250);
-			tween.start();
+			shipTween.to({ angle: -90}, 250);
+			shipTween.start();
+		} else if (shipTween.isRunning && !ship.body.onFloor()) {
+			shipTween.stop();
 		}
 	});
 
