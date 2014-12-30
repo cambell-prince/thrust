@@ -2,27 +2,24 @@
 var game = new Phaser.Game(800, 600, Phaser.WEBGL, 'thrust', { preload: preload, create: create, update: update, render: render });
 
 function preload() {
-
     game.load.tilemap('level1', 'assets/level1.json', null, Phaser.Tilemap.TILED_JSON);
     game.load.image('tiles-1', 'assets/tiles-1.png');
+    game.load.image('arrow-line', 'assets/longarrow.png');
+    game.load.image('arrow', 'assets/longarrow2.png');
     game.load.spritesheet('ship', 'assets/ship.png', 70, 48, 4, 2, 2);
     game.load.spritesheet('droid', 'assets/droid.png', 32, 32);
-    game.load.image('starSmall', 'assets/star.png');
-    game.load.image('starBig', 'assets/star2.png');
     game.load.image('background', 'assets/background2.png');
-
 }
 
 var map;
 var tileset;
 var layer;
 var ship;
-var facing = 'left';
-var jumpTimer = 0;
+var shipTween;
+var enemies;
 var cursors;
 var jumpButton;
 var bg;
-var shipTween;
 
 function create() {
 
@@ -31,26 +28,14 @@ function create() {
 	game.renderer.roundPixels = true;
 
     game.physics.startSystem(Phaser.Physics.ARCADE);
+    game.physics.arcade.gravity.y = 40;
 
+    // Background
     game.stage.backgroundColor = '#000000';
-
     bg = game.add.tileSprite(0, 0, 800, 600, 'background');
     bg.fixedToCamera = true;
 
-    map = game.add.tilemap('level1');
-    map.addTilesetImage('tiles-1');
-
-    map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
-
-    layer = map.createLayer('Walls');
-
-    //  Un-comment this on to see the collision tiles
-    //layer.debug = true;
-
-    layer.resizeWorld();
-
-    game.physics.arcade.gravity.y = 40;
-
+    // Ship Setup
     ship = game.add.sprite(100, 80, 'ship');
     game.physics.enable(ship, Phaser.Physics.ARCADE);
 
@@ -67,6 +52,32 @@ function create() {
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
+    // Add the walls (for level 1)
+    map = game.add.tilemap('level1');
+    map.addTilesetImage('tiles-1');
+    map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
+
+    layer = map.createLayer('Walls');
+    layer.resizeWorld();
+    //  Un-comment this on to see the collision tiles
+    //layer.debug = true;
+    
+    // Add the enemy
+    enemies = game.add.group();
+//    enemies.enableBody = true;
+    map.createFromObjects('Enemy', 69, 'arrow', 0, true, false, enemies);
+    enemies.setAll('anchor.x', 0.25);
+    enemies.setAll('anchor.y', 0.5);
+    enemies.setAll('scale.x', 0.5);
+    enemies.setAll('scale.y', 0.5);
+}
+
+function damageShip(ship, enemy) {
+    console.log('ship hit');
+}
+
+function trackShip(enemy) {
+    enemy.rotation = game.physics.arcade.angleBetween(enemy, ship);
 }
 
 function update() {
@@ -80,6 +91,8 @@ function update() {
 			shipTween.stop();
 		}
 	});
+    game.physics.arcade.overlap(enemies, ship, damageShip, null, this);
+    enemies.forEachAlive(trackShip, this);
 
     // Left / Right angular control
     if (cursors.left.isDown)

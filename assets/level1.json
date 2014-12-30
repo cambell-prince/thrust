@@ -10,6 +10,59 @@
          "width":64,
          "x":0,
          "y":0
+        }, 
+        {
+         "height":64,
+         "name":"Enemy",
+         "objects":[
+                {
+                 "gid":69,
+                 "height":0,
+                 "name":"",
+                 "properties":
+                    {
+
+                    },
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":-14,
+                 "y":854
+                }, 
+                {
+                 "gid":69,
+                 "height":0,
+                 "name":"",
+                 "properties":
+                    {
+
+                    },
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":708,
+                 "y":993
+                }, 
+                {
+                 "gid":69,
+                 "height":0,
+                 "name":"",
+                 "properties":
+                    {
+
+                    },
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":607,
+                 "y":689
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "width":64,
+         "x":0,
+         "y":0
         }],
  "orientation":"orthogonal",
  "properties":
@@ -32,6 +85,21 @@
          "spacing":0,
          "tileheight":16,
          "tilewidth":16
+        }, 
+        {
+         "firstgid":69,
+         "image":"longarrow2.png",
+         "imageheight":32,
+         "imagewidth":72,
+         "margin":0,
+         "name":"enemies",
+         "properties":
+            {
+
+            },
+         "spacing":0,
+         "tileheight":32,
+         "tilewidth":32
         }],
  "tilewidth":16,
  "version":1,

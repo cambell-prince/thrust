@@ -3,6 +3,9 @@
  <tileset firstgid="1" name="tiles-1" tilewidth="16" tileheight="16">
   <image source="tiles-1.png" width="272" height="64"/>
  </tileset>
+ <tileset firstgid="69" name="enemies" tilewidth="32" tileheight="32">
+  <image source="longarrow2.png" width="72" height="32"/>
+ </tileset>
  <layer name="Walls" width="64" height="64">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -71,4 +74,9 @@
 19,19,19,19,5,5,5,64,65,5,64,65,5,64,65,5,19,19,19,19,2,30,31,31,30,31,31,5,2,3,2,21,22,23,19,5,5,66,66,67,5,5,19,19,19,19,19,19,6,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19
 </data>
  </layer>
+ <objectgroup name="Enemy" width="64" height="64">
+  <object gid="69" x="-14" y="854"/>
+  <object gid="69" x="708" y="993"/>
+  <object gid="69" x="607" y="689"/>
+ </objectgroup>
 </map>
