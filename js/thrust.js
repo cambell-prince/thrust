@@ -45,9 +45,9 @@ function create() {
     ship.anchor.set(0.70, 0.5);
     ship.body.drag.set(15);
     ship.body.maxVelocity.set(200);
+    shipTween = game.add.tween(ship).to({ angle: -80}, 1000).start();
 
     game.camera.follow(ship);
-    shipTween = game.add.tween(ship);
 
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
@@ -83,12 +83,9 @@ function trackShip(enemy) {
 function update() {
 
     game.physics.arcade.collide(ship, layer, function(ship, layer) {
-		if (!shipTween.isRunning && ship.angle != -90 && ship.body.onFloor()) {
+		if (shipTween && !shipTween.isRunning && !Phaser.Math.fuzzyEqual(ship.angle, -90) && ship.body.onFloor()) {
 			ship.body.angularVelocity = 0;
-			shipTween.to({ angle: -90}, 250);
-			shipTween.start();
-		} else if (shipTween.isRunning && !ship.body.onFloor()) {
-			shipTween.stop();
+			shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
 		}
 	});
     game.physics.arcade.overlap(enemies, ship, damageShip, null, this);
