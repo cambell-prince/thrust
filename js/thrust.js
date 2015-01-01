@@ -18,7 +18,7 @@ function preload() {
 var bg;
 var map;
 var tileset;
-var layer;
+var walls;
 
 // Input
 var cursors;
@@ -28,12 +28,12 @@ var fireButton;
 var ship;
 var shipTween;
 var bullets;
-var bulletTime = 0;
+var shipShootTimer = 0;
 
 // Enemies
 var enemies;
 var enemyBullets;
-var firingTimer = 0;
+var enemyShootTimer = 0;
 
 var explosions;
 
@@ -74,10 +74,10 @@ function create() {
     map.addTilesetImage('tiles-1');
     map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
 
-    layer = map.createLayer('Walls');
-    layer.resizeWorld();
+    walls = map.createLayer('Walls');
+    walls.resizeWorld();
     //  Un-comment this on to see the collision tiles
-    //layer.debug = true;
+    //walls.debug = true;
 
     // Ship bullets
     bullets = game.add.group();
@@ -105,7 +105,7 @@ function create() {
     enemyBullets = game.add.group();
     enemyBullets.enableBody = true;
     enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
-    enemyBullets.createMultiple(30, 'enemyBullet');
+    enemyBullets.createMultiple(5, 'enemyBullet');
     enemyBullets.setAll('anchor.x', 0.5);
     enemyBullets.setAll('anchor.y', 1);
     enemyBullets.setAll('outOfBoundsKill', true);
@@ -159,25 +159,25 @@ function update() {
 	if (fireButton.isDown)
 	{
 		//  To avoid them being allowed to fire too fast we set a time limit
-		if (game.time.now > bulletTime)
+		if (game.time.now > shipShootTimer)
 		{
 			shipShoot();
 		}
 	}
-	if (game.time.now > firingTimer)
+	if (game.time.now > enemyShootTimer)
 	{
 		enemyShoot();
 	}
 
 	//  Run collisions
-	game.physics.arcade.collide(ship, layer, function(ship, layer) {
+	game.physics.arcade.collide(ship, walls, function(ship, walls) {
 		if (shipTween && !shipTween.isRunning && !Phaser.Math.fuzzyEqual(ship.angle, -90) && ship.body.onFloor()) {
 			ship.body.angularVelocity = 0;
 			shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
 		}
 	});
-	game.physics.arcade.collide(enemyBullets, layer, bulletHitsWall, null, this);
-	game.physics.arcade.overlap(bullets, layer, bulletHitsWall, null, this);
+	game.physics.arcade.collide(enemyBullets, walls, bulletHitsWall, null, this);
+	game.physics.arcade.overlap(bullets, walls, bulletHitsWall, null, this);
     enemies.forEachAlive(trackShip, this);
 	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);
 	game.physics.arcade.overlap(enemyBullets, ship, enemyBulletHitsShip, null, this);
@@ -190,7 +190,7 @@ function explosion(x, y) {
     explosion.play('kaboom', 30, false, true);
 }
 
-function bulletHitsWall(bullet, layer) {
+function bulletHitsWall(bullet, walls) {
     // When a bullet hits a wall we kill the bullet and explode (with no damage to the wall)
     bullet.kill();
     explosion(bullet.body.x, bullet.body.y);
@@ -202,7 +202,7 @@ function bulletHitsEnemy (bullet, enemy) {
     bullet.kill();
 
     //  And create an explosion :)
-    explosion(enemy.body.x, enemy.body.y);
+    explosion(bullet.body.x, bullet.body.y);
 
     //  Increase the score
 //    score += 20;
@@ -215,7 +215,7 @@ function bulletHitsEnemy (bullet, enemy) {
 
 function enemyBulletHitsShip(ship,enemyBullet) {
     enemyBullet.kill();
-    explosion(ship.body.x, ship.body.y);
+    explosion(enemyBullet.body.x, enemyBullet.body.y);
 
 	// TODO Damage the ship
 }
@@ -225,38 +225,41 @@ function enemyShoot () {
     //  Grab the first bullet we can from the pool
     enemyBullet = enemyBullets.getFirstExists(false);
     if (enemyBullet) {        
-//        var random=game.rnd.integerInRange(0,livingEnemies.length-1);
-
         // randomly select one of them
-        var shooter=enemies.getRandom();
-        // And fire the bullet from this enemy
-        enemyBullet.reset(shooter.body.x, shooter.body.y);
+        var shooter = enemies.getRandom();
 
-        game.physics.arcade.moveToObject(enemyBullet, ship, 120);
-        firingTimer = game.time.now + 2000;
+		// Only shoot if the enemy has line of sight
+        var ray = new Phaser.Line(ship.x, ship.y, shooter.x, shooter.y);
+        var wallsInTheWay = walls.getRayCastTiles(ray, 8, true);
+        if (wallsInTheWay.length == 0) {
+			// Then fire the bullet from this enemy
+			enemyBullet.reset(shooter.body.x, shooter.body.y);
+
+			game.physics.arcade.moveToObject(enemyBullet, ship, 120);
+			enemyShootTimer = game.time.now + 2000;
+		}
     }
 
 }
 
 function shipShoot  () {
 
-	//  Grab the first bullet we can from the pool
+	// Grab the first bullet we can from the pool
 	bullet = bullets.getFirstExists(false);
 	if (bullet)
 	{
-		//  And fire it
-		bullet.reset(ship.x, ship.y); //  TODO Get a better start position for the bullet based on angle
+		// And fire it
+		bullet.reset(ship.x, ship.y); // TODO Get a better start position for the bullet based on angle
 		bullet.rotation = ship.rotation; 
 		game.physics.arcade.velocityFromRotation(ship.rotation, 300, bullet.body.velocity);
-//  		bullet.body.velocity.y = -400; // TODO Fix
-		bulletTime = game.time.now + 200; // Ok?
+		shipShootTimer = game.time.now + 200;
 	}
 
 }
 
 function resetBullet(bullet) { // TODO Used?
 
-    //  Called if the bullet goes out of the screen
+    // Called if the bullet goes out of the screen // TODO FIX
     bullet.kill();
 
 }
