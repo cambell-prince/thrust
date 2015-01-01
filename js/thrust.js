@@ -110,6 +110,7 @@ function create() {
     enemyBullets.setAll('anchor.y', 1);
     enemyBullets.setAll('outOfBoundsKill', true);
     enemyBullets.setAll('checkWorldBounds', true);
+    enemyBullets.setAll('body.allowGravity', false);
 
     //  An explosion pool
     explosions = game.add.group();
@@ -119,10 +120,6 @@ function create() {
 		sprite.animations.add('kaboom');
 	}, this);
 
-}
-
-function damageShip(ship, enemy) {
-    console.log('ship hit');
 }
 
 function trackShip(enemy) {
@@ -169,7 +166,7 @@ function update() {
 	}
 	if (game.time.now > firingTimer)
 	{
-//		enemyFires();
+		enemyShoot();
 	}
 
 	//  Run collisions
@@ -179,8 +176,8 @@ function update() {
 			shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
 		}
 	});
+	game.physics.arcade.collide(enemyBullets, layer, bulletHitsWall, null, this);
 	game.physics.arcade.overlap(bullets, layer, bulletHitsWall, null, this);
-//    game.physics.arcade.overlap(enemies, ship, damageShip, null, this);
     enemies.forEachAlive(trackShip, this);
 	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);
 	game.physics.arcade.overlap(enemyBullets, ship, enemyBulletHitsShip, null, this);
@@ -216,48 +213,24 @@ function bulletHitsEnemy (bullet, enemy) {
 
 }
 
-function enemyBulletHitsShip (player,bullet) {
-    
-    bullet.kill();
+function enemyBulletHitsShip(ship,enemyBullet) {
+    enemyBullet.kill();
+    explosion(ship.body.x, ship.body.y);
 
-    live = lives.getFirstAlive();
-
-    if (live)
-    {
-        live.kill();
-    }
-
-    //  And create an explosion :)
-    var explosion = explosions.getFirstExists(false);
-    explosion.reset(player.body.x, player.body.y);
-    explosion.play('kaboom', 30, false, true);
-
-    // When the player dies
-    if (lives.countLiving() < 1)
-    {
-        player.kill();
-        enemyBullets.callAll('kill');
-
-        stateText.text=" GAME OVER \n Click to restart";
-        stateText.visible = true;
-
-        //the "click to restart" handler
-        game.input.onTap.addOnce(restart,this);
-    }
-
+	// TODO Damage the ship
 }
 
-function enemyFires () {
+function enemyShoot () {
 
     //  Grab the first bullet we can from the pool
     enemyBullet = enemyBullets.getFirstExists(false);
-    if (false || enemyBullet) {        
+    if (enemyBullet) {        
 //        var random=game.rnd.integerInRange(0,livingEnemies.length-1);
 
         // randomly select one of them
-//        var shooter=livingEnemies[random];
+        var shooter=enemies.getRandom();
         // And fire the bullet from this enemy
-//        enemyBullet.reset(shooter.body.x, shooter.body.y);
+        enemyBullet.reset(shooter.body.x, shooter.body.y);
 
         game.physics.arcade.moveToObject(enemyBullet, ship, 120);
         firingTimer = game.time.now + 2000;
