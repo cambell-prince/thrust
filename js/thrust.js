@@ -92,13 +92,14 @@ function create() {
 
     // Add the enemy
     enemies = game.add.group();
-    //enemies.enableBody = true;
-    //enemies.physicsBodyType = Phaser.Physics.ARCADE;
+    enemies.enableBody = true;
+    enemies.physicsBodyType = Phaser.Physics.ARCADE;
     map.createFromObjects('Enemy', 69, 'arrow', 0, true, false, enemies);
     enemies.setAll('anchor.x', 0.25);
     enemies.setAll('anchor.y', 0.5);
     enemies.setAll('scale.x', 0.5);
     enemies.setAll('scale.y', 0.5);
+    enemies.setAll('body.allowGravity', false);
 
     // Enemy bullets
     enemyBullets = game.add.group();
@@ -168,7 +169,7 @@ function update() {
 	}
 	if (game.time.now > firingTimer)
 	{
-		enemyFires();
+//		enemyFires();
 	}
 
 	//  Run collisions
@@ -202,27 +203,16 @@ function bulletHitsEnemy (bullet, enemy) {
 
     //  When a bullet hits an enemy we kill them both
     bullet.kill();
-    //enemy.kill();
-
-    //  Increase the score
-    score += 20;
-    scoreText.text = scoreString + score;
 
     //  And create an explosion :)
     explosion(enemy.body.x, enemy.body.y);
 
-    if (enemies.countLiving() == 0)
-    {
-        score += 1000;
-        scoreText.text = scoreString + score;
+    //  Increase the score
+//    score += 20;
+//    scoreText.text = scoreString + score;
 
-        enemyBullets.callAll('kill',this);
-        stateText.text = " You Won, \n Click to restart";
-        stateText.visible = true;
-
-        //the "click to restart" handler
-        game.input.onTap.addOnce(restart,this);
-    }
+	// TODO Damage the enemy
+    enemy.kill();
 
 }
 
@@ -302,7 +292,7 @@ function render () {
 
     //game.debug.text(game.time.physicsElapsed, 32, 32);
     //game.debug.body(ship);
-    //game.debug.bodyInfo(ship, 16, 24);
+    //game.debug.bodyInfo(enemies, 16, 24);
     //game.debug.body(bullets);
 
 }
