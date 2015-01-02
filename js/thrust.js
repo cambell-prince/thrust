@@ -1,22 +1,26 @@
 
-var game = new Phaser.Game(800, 600, Phaser.WEBGL, 'thrust', { preload: preload, create: create, update: update, render: render });
+var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'thrust', { preload: preload, create: create, update: update, render: render });
 
 var Game = {};
 
 Game.Scoreboard = function(game) {
-	this.graphics = game.add.graphics(0, 0);
-	this.graphics.fixedToCamera = true;
+	this.group = game.add.group();
+	this.group.fixedToCamera = true;
+	this.graphics = game.add.graphics(0, 0, this.group);
 
 	this.fuel = 100;
 	this.life = 100;
 
-	this._lifeRectangle = new Phaser.Rectangle(10, 10, 180, 6);
-	this._fuelRectangle = new Phaser.Rectangle(200, 10, 180, 6);
+	this._lifeRectangle = new Phaser.Rectangle(42, 10, 140, 6);
 
+    game.add.text(10, 7, 'LIFE', { font: '11px Arial', fill: '#fff' }, this.group);
 	var lifeOuter = this._lifeRectangle.clone().inflate(1, 1);
     this.graphics.lineStyle(2, 0xffd900, 1);
     this.graphics.beginFill(0x6699FF);
 	this.graphics.drawShape(lifeOuter);
+
+	this._fuelRectangle = new Phaser.Rectangle(236, 10, 140, 6);
+    game.add.text(200, 7, 'FUEL', { font: '11px Arial', fill: '#fff' }, this.group);
 	var fuelOuter = this._fuelRectangle.clone().inflate(1, 1);
     this.graphics.beginFill(0xFF3300);
 	this.graphics.drawShape(fuelOuter);
@@ -186,10 +190,6 @@ function create() {
 	scoreboard = new Game.Scoreboard(game);
 }
 
-function trackShip(enemy) {
-    enemy.rotation = game.physics.arcade.angleBetween(enemy, ship);
-}
-
 function update() {
     // Left / Right angular control
     if (cursors.left.isDown) {
@@ -247,9 +247,7 @@ function update() {
 			}
 		}
 	});
-	game.physics.arcade.collide(enemyBullets, walls, bulletHitsWall, null, this);
-	game.physics.arcade.overlap(bullets, walls, bulletHitsWall, null, this);
-    enemies.forEachAlive(trackShip, this);
+	game.physics.arcade.overlap([bullets, enemyBullets], walls, bulletHitsWall, null, this);
 	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);
 	game.physics.arcade.overlap(enemyBullets, ship, enemyBulletHitsShip, null, this);
 
@@ -269,13 +267,13 @@ function bulletHitsWall(bullet, walls) {
 
 function bulletHitsEnemy (bullet, enemy) {
 
-    //  When a bullet hits an enemy we kill them both
+    // When a bullet hits an enemy we kill it
     bullet.kill();
 
     //  And create an explosion :)
     explosion(bullet.body.x, bullet.body.y);
 
-    //  Increase the score
+    // TODO Increase the score
 //    score += 20;
 //    scoreText.text = scoreString + score;
 
@@ -295,23 +293,22 @@ function enemyBulletHitsShip(ship,enemyBullet) {
 }
 
 function enemyShoot () {
-
-    //  Grab the first bullet we can from the pool
+    // Grab the first bullet we can from the pool
     enemyBullet = enemyBullets.getFirstExists(false);
     if (enemyBullet) {        
         // randomly select one of them
         var shooter = enemies.getRandom();
-
+        // tween to point the enemy at the ship
+		game.add.tween(shooter).to({ rotation: game.physics.arcade.angleBetween(shooter, ship)}, 400).start();
 		// Only shoot if the enemy has line of sight
         var ray = new Phaser.Line(ship.x, ship.y, shooter.x, shooter.y);
         var wallsInTheWay = walls.getRayCastTiles(ray, 8, true);
         if (wallsInTheWay.length == 0) {
 			// Then fire the bullet from this enemy
 			enemyBullet.reset(shooter.body.x, shooter.body.y);
-
-			game.physics.arcade.moveToObject(enemyBullet, ship, 120);
-			enemyShootTimer = game.time.now + 2000;
+			game.physics.arcade.moveToObject(enemyBullet, ship, 120); // TODO map.properties
 		}
+		enemyShootTimer = game.time.now + parseInt(map.properties.enemyShootTime);
     }
 
 }

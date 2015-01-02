@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0" orientation="orthogonal" width="64" height="64" tilewidth="16" tileheight="16">
  <properties>
+  <property name="enemyShootTime" value="2500"/>
   <property name="fuelExpense" value="1"/>
   <property name="lifeExpense" value="20"/>
  </properties>

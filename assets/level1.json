@@ -67,6 +67,7 @@
  "orientation":"orthogonal",
  "properties":
     {
+     "enemyShootTime":"2500",
      "fuelExpense":"1",
      "lifeExpense":"20"
     },
