@@ -75,7 +75,7 @@
 </data>
  </layer>
  <objectgroup name="Enemy" width="64" height="64">
-  <object gid="69" x="-14" y="854"/>
+  <object gid="69" x="-2" y="848"/>
   <object gid="69" x="708" y="993"/>
   <object gid="69" x="607" y="689"/>
  </objectgroup>

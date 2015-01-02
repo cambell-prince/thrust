@@ -63,7 +63,7 @@ function create() {
     ship.body.collideWorldBounds = true;
     ship.body.setSize(46, 46, 10, 0);
     ship.anchor.set(0.70, 0.5);
-    ship.body.drag.set(15);
+    ship.body.drag.set(game.physics.arcade.gravity.y / 2);
     ship.body.maxVelocity.set(200);
     shipTween = game.add.tween(ship).to({ angle: -80}, 1000).start();
 
@@ -76,7 +76,7 @@ function create() {
 
     walls = map.createLayer('Walls');
     walls.resizeWorld();
-    //  Un-comment this on to see the collision tiles
+    //  Un-comment this to see the collision tiles
     //walls.debug = true;
 
     // Ship bullets
@@ -171,9 +171,12 @@ function update() {
 
 	//  Run collisions
 	game.physics.arcade.collide(ship, walls, function(ship, walls) {
-		if (shipTween && !shipTween.isRunning && !Phaser.Math.fuzzyEqual(ship.angle, -90) && ship.body.onFloor()) {
-			ship.body.angularVelocity = 0;
-			shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
+		// Smooth the landing and make the ship upright if we think the ship landed.
+		if (!shipTween.isRunning && !Phaser.Math.fuzzyEqual(ship.angle, -90) && ship.body.onFloor()) {
+			if (ship.angle > -135 && ship.angle < -45) {
+				ship.body.angularVelocity = 0;
+				shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
+			}
 		}
 	});
 	game.physics.arcade.collide(enemyBullets, walls, bulletHitsWall, null, this);
