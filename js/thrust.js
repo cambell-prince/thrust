@@ -26,6 +26,11 @@ Game.Scoreboard = function(game) {
 	this.graphics.drawShape(fuelOuter);
 	this.graphics.endFill();
 	
+    game.add.text(390, 7, 'MISSION', { font: '11px Arial', fill: '#fff' }, this.group);
+
+
+    game.add.text(580, 7, 'SCORE', { font: '11px Arial', fill: '#fff' }, this.group);
+
 	this.setFuel(100);
 	this.setLife(100);
 	
@@ -136,7 +141,6 @@ function create() {
 
     // Add the walls (for level 1)
     map = game.add.tilemap('level1');
-    console.log(map);
     map.addTilesetImage('tiles-1');
     map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
 
@@ -274,11 +278,12 @@ function bulletHitsEnemy (bullet, enemy) {
     explosion(bullet.body.x, bullet.body.y);
 
     // TODO Increase the score
+    // TODO map.properties
 //    score += 20;
 //    scoreText.text = scoreString + score;
 
 	// TODO Damage the enemy
-    enemy.kill();
+    enemy.destroy();
 
 }
 
@@ -293,6 +298,9 @@ function enemyBulletHitsShip(ship,enemyBullet) {
 }
 
 function enemyShoot () {
+	if (enemies.length == 0) {
+		return;
+	}
     // Grab the first bullet we can from the pool
     enemyBullet = enemyBullets.getFirstExists(false);
     if (enemyBullet) {        
@@ -314,7 +322,6 @@ function enemyShoot () {
 }
 
 function shipShoot  () {
-
 	// Grab the first bullet we can from the pool
 	bullet = bullets.getFirstExists(false);
 	if (bullet)
@@ -323,7 +330,7 @@ function shipShoot  () {
 		bullet.reset(ship.x, ship.y); // TODO Get a better start position for the bullet based on angle
 		bullet.rotation = ship.rotation; 
 		game.physics.arcade.velocityFromRotation(ship.rotation, 300, bullet.body.velocity);
-		shipShootTimer = game.time.now + 200;
+		shipShootTimer = game.time.now + 200; // TODO map.properties
 	}
 
 }
