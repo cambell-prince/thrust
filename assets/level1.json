@@ -67,7 +67,8 @@
  "orientation":"orthogonal",
  "properties":
     {
-
+     "fuelExpense":"1",
+     "lifeExpense":"20"
     },
  "tileheight":16,
  "tilesets":[

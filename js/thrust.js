@@ -1,6 +1,65 @@
 
 var game = new Phaser.Game(800, 600, Phaser.WEBGL, 'thrust', { preload: preload, create: create, update: update, render: render });
 
+var Game = {};
+
+Game.Scoreboard = function(game) {
+	this.graphics = game.add.graphics(0, 0);
+	this.graphics.fixedToCamera = true;
+
+	this.fuel = 100;
+	this.life = 100;
+
+	this._lifeRectangle = new Phaser.Rectangle(10, 10, 180, 6);
+	this._fuelRectangle = new Phaser.Rectangle(200, 10, 180, 6);
+
+	var lifeOuter = this._lifeRectangle.clone().inflate(1, 1);
+    this.graphics.lineStyle(2, 0xffd900, 1);
+    this.graphics.beginFill(0x6699FF);
+	this.graphics.drawShape(lifeOuter);
+	var fuelOuter = this._fuelRectangle.clone().inflate(1, 1);
+    this.graphics.beginFill(0xFF3300);
+	this.graphics.drawShape(fuelOuter);
+	this.graphics.endFill();
+	
+	this.setFuel(100);
+	this.setLife(100);
+	
+}
+
+Game.Scoreboard.prototype.reset = function() {
+	this.setFuel(100);
+	this.setLife(100);
+}
+
+Game.Scoreboard.prototype.setFuel = function(amount) {
+	if (amount < 0) {
+		amount = 0;
+	}
+	this.fuel = amount;
+	var width = this._fuelRectangle.width * amount / 100;
+    this.graphics.lineStyle(0, 0xFFFFFF, 0);
+    this.graphics.beginFill(0x000000);
+    this.graphics.drawRect(this._fuelRectangle.x + width, this._fuelRectangle.y, this._fuelRectangle.width - width, this._fuelRectangle.height);
+    this.graphics.endFill();
+    return this.fuel;
+}
+
+Game.Scoreboard.prototype.setLife = function(amount) {
+	if (amount < 0) {
+		amount = 0;
+	}
+	this.life = amount;
+	var width = this._lifeRectangle.width * amount / 100;
+    this.graphics.lineStyle(0, 0xFFFFFF, 0);
+    this.graphics.beginFill(0x000000);
+    this.graphics.drawRect(this._lifeRectangle.x + width, this._lifeRectangle.y, this._lifeRectangle.width - width, this._lifeRectangle.height);
+    this.graphics.endFill();
+    return this.life;
+}
+
+
+
 function preload() {
     game.load.image('background', 'assets/background2.png');
     game.load.spritesheet('ship', 'assets/ship.png', 70, 48, 4, 2, 2);
@@ -19,6 +78,7 @@ var bg;
 var map;
 var tileset;
 var walls;
+var scoreboard;
 
 // Input
 var cursors;
@@ -29,6 +89,7 @@ var ship;
 var shipTween;
 var bullets;
 var shipShootTimer = 0;
+var fuelTimer = 0;
 
 // Enemies
 var enemies;
@@ -71,6 +132,7 @@ function create() {
 
     // Add the walls (for level 1)
     map = game.add.tilemap('level1');
+    console.log(map);
     map.addTilesetImage('tiles-1');
     map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
 
@@ -120,6 +182,8 @@ function create() {
 		sprite.animations.add('kaboom');
 	}, this);
 
+	// Finally, the scoreboard
+	scoreboard = new Game.Scoreboard(game);
 }
 
 function trackShip(enemy) {
@@ -143,8 +207,12 @@ function update() {
 		ship.frame = 3;
 	}
 	// Thrust control
-    if (cursors.up.isDown)
+    if (cursors.up.isDown && scoreboard.fuel > 0)
     {
+		if (game.time.now > fuelTimer) {
+			scoreboard.setFuel(scoreboard.fuel - map.properties.fuelExpense);
+			fuelTimer = game.time.now + 500;
+		}
         game.physics.arcade.accelerationFromRotation(ship.rotation, 200, ship.body.acceleration);
 		ship.frame = 2;
     }
@@ -219,8 +287,11 @@ function bulletHitsEnemy (bullet, enemy) {
 function enemyBulletHitsShip(ship,enemyBullet) {
     enemyBullet.kill();
     explosion(enemyBullet.body.x, enemyBullet.body.y);
+    
+    if (scoreboard.setLife(scoreboard.life - map.properties.lifeExpense) <= 0) {
+		ship.kill();
+	}
 
-	// TODO Damage the ship
 }
 
 function enemyShoot () {
