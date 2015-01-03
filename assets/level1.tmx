@@ -11,6 +11,9 @@
  <tileset firstgid="69" name="enemies" tilewidth="32" tileheight="32">
   <image source="longarrow2.png" width="72" height="32"/>
  </tileset>
+ <tileset firstgid="71" name="collectables" tilewidth="48" tileheight="48">
+  <image source="collectables.png" width="288" height="48"/>
+ </tileset>
  <layer name="Walls" width="64" height="64">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -80,8 +83,12 @@
 </data>
  </layer>
  <objectgroup name="Enemy" width="64" height="64">
-  <object gid="69" x="-2" y="848"/>
-  <object gid="69" x="708" y="993"/>
-  <object gid="69" x="607" y="689"/>
+  <object name="1" type="E" gid="69" x="-2" y="848"/>
+  <object name="2" type="E" gid="69" x="708" y="993"/>
+  <object name="3" type="E" gid="69" x="607" y="689"/>
+ </objectgroup>
+ <objectgroup name="Collectables" width="64" height="64">
+  <object name="Mission 1" type="M" gid="71" x="137" y="1008"/>
+  <object gid="71" x="45" y="607"/>
  </objectgroup>
 </map>

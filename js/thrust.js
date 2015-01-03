@@ -72,6 +72,7 @@ Game.Scoreboard.prototype.setLife = function(amount) {
 function preload() {
     game.load.image('background', 'assets/background2.png');
     game.load.spritesheet('ship', 'assets/ship.png', 70, 48, 4, 2, 2);
+    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
     game.load.image('bullet', 'assets/bullet.png');
     game.load.image('enemyBullet', 'assets/enemy-bullet.png');
     game.load.spritesheet('kaboom', 'assets/explode.png', 128, 128);
@@ -104,6 +105,9 @@ var fuelTimer = 0;
 var enemies;
 var enemyBullets;
 var enemyShootTimer = 0;
+
+// Collectables
+var collectables;
 
 var explosions;
 
@@ -182,6 +186,27 @@ function create() {
     enemyBullets.setAll('checkWorldBounds', true);
     enemyBullets.setAll('body.allowGravity', false);
 
+	// Collectables (Dude)
+    collectables = game.add.group();
+    collectables.enableBody = true;
+    collectables.physicsBodyType = Phaser.Physics.ARCADE;
+    map.createFromObjects('Collectables', 71, 'dude', 0, true, false, collectables);
+    // TODO create other collectables here
+
+	collectables.forEach(function(sprite) {
+		// TODO check for gid == 71 or type == 'M' (from the Tiled map)
+		sprite.body.bounce.y = 0.2;
+		sprite.body.collideWorldBounds = true;
+		sprite.body.setSize(20, 32, 5, 16);
+
+		sprite.animations.add('left', [0, 1, 2, 3], 10, true);
+		sprite.animations.add('turn', [4], 20, true);
+		sprite.animations.add('right', [5, 6, 7, 8], 10, true);
+		
+		sprite.body.velocity.x = 30; // TODO set this from map.properties (peferably on the collectable tile)
+		sprite.animations.play('right');
+	});
+
     //  An explosion pool
     explosions = game.add.group();
     explosions.createMultiple(10, 'kaboom');
@@ -250,6 +275,23 @@ function update() {
 				shipTween = game.add.tween(ship).to({ angle: -90}, 400).start();
 			}
 		}
+	});
+	game.physics.arcade.collide(collectables, walls, function(collectable, walls) {
+		if (collectable.body.onWall()) {
+			if (collectable.animations.currentAnim.name == 'right') {
+				collectable.body.velocity.x = -30;
+				collectable.animations.play('left');
+			} else if (collectable.animations.currentAnim.name == 'left') {
+				collectable.body.velocity.x = 30;
+				collectable.animations.play('right');
+			}
+		}
+	});
+	game.physics.arcade.overlap(ship, collectables, function(ship, collectable) {
+		collectable.kill();
+		// TODO Tween into ship
+		// TODO Tween points
+		// TODO Add to score
 	});
 	game.physics.arcade.overlap([bullets, enemyBullets], walls, bulletHitsWall, null, this);
 	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);

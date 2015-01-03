@@ -18,12 +18,12 @@
                 {
                  "gid":69,
                  "height":0,
-                 "name":"",
+                 "name":"1",
                  "properties":
                     {
 
                     },
-                 "type":"",
+                 "type":"E",
                  "visible":true,
                  "width":0,
                  "x":-2,
@@ -32,12 +32,12 @@
                 {
                  "gid":69,
                  "height":0,
-                 "name":"",
+                 "name":"2",
                  "properties":
                     {
 
                     },
-                 "type":"",
+                 "type":"E",
                  "visible":true,
                  "width":0,
                  "x":708,
@@ -45,6 +45,45 @@
                 }, 
                 {
                  "gid":69,
+                 "height":0,
+                 "name":"3",
+                 "properties":
+                    {
+
+                    },
+                 "type":"E",
+                 "visible":true,
+                 "width":0,
+                 "x":607,
+                 "y":689
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "width":64,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "height":64,
+         "name":"Collectables",
+         "objects":[
+                {
+                 "gid":71,
+                 "height":0,
+                 "name":"Mission 1",
+                 "properties":
+                    {
+
+                    },
+                 "type":"M",
+                 "visible":true,
+                 "width":0,
+                 "x":137,
+                 "y":1008
+                }, 
+                {
+                 "gid":71,
                  "height":0,
                  "name":"",
                  "properties":
@@ -54,8 +93,8 @@
                  "type":"",
                  "visible":true,
                  "width":0,
-                 "x":607,
-                 "y":689
+                 "x":45,
+                 "y":607
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -102,6 +141,21 @@
          "spacing":0,
          "tileheight":32,
          "tilewidth":32
+        }, 
+        {
+         "firstgid":71,
+         "image":"collectables.png",
+         "imageheight":48,
+         "imagewidth":288,
+         "margin":0,
+         "name":"collectables",
+         "properties":
+            {
+
+            },
+         "spacing":0,
+         "tileheight":48,
+         "tilewidth":48
         }],
  "tilewidth":16,
  "version":1,
