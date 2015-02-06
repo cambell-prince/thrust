@@ -10,6 +10,7 @@ Game.Scoreboard = function(game) {
 
 	this.fuel = 100;
 	this.life = 100;
+	this.score = 0;
 
 	this._lifeRectangle = new Phaser.Rectangle(42, 10, 140, 6);
 
@@ -30,6 +31,7 @@ Game.Scoreboard = function(game) {
 
 
     game.add.text(580, 7, 'SCORE', { font: '11px Arial', fill: '#fff' }, this.group);
+    this._scoreText = game.add.text(630, 7, '0', { font: '11px Arial', fill: '#fff' }, this.group);
 
 	this.setFuel(100);
 	this.setLife(100);
@@ -39,6 +41,7 @@ Game.Scoreboard = function(game) {
 Game.Scoreboard.prototype.reset = function() {
 	this.setFuel(100);
 	this.setLife(100);
+	this.score = 0;
 }
 
 Game.Scoreboard.prototype.setFuel = function(amount) {
@@ -67,7 +70,10 @@ Game.Scoreboard.prototype.setLife = function(amount) {
     return this.life;
 }
 
-
+Game.Scoreboard.prototype.changeScore = function(change) {
+	this.score += change;
+	this._scoreText.text = this.score;
+}
 
 function preload() {
     game.load.image('background', 'assets/background2.png');
@@ -292,6 +298,7 @@ function update() {
 		// TODO Tween into ship
 		// TODO Tween points
 		// TODO Add to score
+		scoreboard.changeScore(500);
 	});
 	game.physics.arcade.overlap([bullets, enemyBullets], walls, bulletHitsWall, null, this);
 	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);
@@ -320,6 +327,7 @@ function bulletHitsEnemy (bullet, enemy) {
     explosion(bullet.body.x, bullet.body.y);
 
     // TODO Increase the score
+    scoreboard.changeScore(100);
     // TODO map.properties
 //    score += 20;
 //    scoreText.text = scoreString + score;
