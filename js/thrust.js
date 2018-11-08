@@ -1,4 +1,4 @@
-
+/* global Phaser */
 var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'thrust', { preload: preload, create: create, update: update, render: render });
 
 var Game = {};
@@ -14,24 +14,24 @@ Game.Scoreboard = function(game) {
 
 	this._lifeRectangle = new Phaser.Rectangle(42, 10, 140, 6);
 
-    game.add.text(10, 7, 'LIFE', { font: '11px Arial', fill: '#fff' }, this.group);
+	game.add.text(10, 7, 'LIFE', { font: '11px Arial', fill: '#fff' }, this.group);
 	var lifeOuter = this._lifeRectangle.clone().inflate(1, 1);
-    this.graphics.lineStyle(2, 0xffd900, 1);
-    this.graphics.beginFill(0x6699FF);
+	this.graphics.lineStyle(2, 0xffd900, 1);
+	this.graphics.beginFill(0x6699FF);
 	this.graphics.drawShape(lifeOuter);
 
 	this._fuelRectangle = new Phaser.Rectangle(236, 10, 140, 6);
-    game.add.text(200, 7, 'FUEL', { font: '11px Arial', fill: '#fff' }, this.group);
+	game.add.text(200, 7, 'FUEL', { font: '11px Arial', fill: '#fff' }, this.group);
 	var fuelOuter = this._fuelRectangle.clone().inflate(1, 1);
-    this.graphics.beginFill(0xFF3300);
+	this.graphics.beginFill(0xFF3300);
 	this.graphics.drawShape(fuelOuter);
 	this.graphics.endFill();
 	
-    game.add.text(390, 7, 'MISSION', { font: '11px Arial', fill: '#fff' }, this.group);
+	game.add.text(390, 7, 'MISSION', { font: '11px Arial', fill: '#fff' }, this.group);
 
 
-    game.add.text(580, 7, 'SCORE', { font: '11px Arial', fill: '#fff' }, this.group);
-    this._scoreText = game.add.text(630, 7, '0', { font: '11px Arial', fill: '#fff' }, this.group);
+	game.add.text(580, 7, 'SCORE', { font: '11px Arial', fill: '#fff' }, this.group);
+	this._scoreText = game.add.text(630, 7, '0', { font: '11px Arial', fill: '#fff' }, this.group);
 
 	this.setFuel(100);
 	this.setLife(100);
@@ -50,11 +50,11 @@ Game.Scoreboard.prototype.setFuel = function(amount) {
 	}
 	this.fuel = amount;
 	var width = this._fuelRectangle.width * amount / 100;
-    this.graphics.lineStyle(0, 0xFFFFFF, 0);
-    this.graphics.beginFill(0x000000);
-    this.graphics.drawRect(this._fuelRectangle.x + width, this._fuelRectangle.y, this._fuelRectangle.width - width, this._fuelRectangle.height);
-    this.graphics.endFill();
-    return this.fuel;
+	this.graphics.lineStyle(0, 0xFFFFFF, 0);
+	this.graphics.beginFill(0x000000);
+	this.graphics.drawRect(this._fuelRectangle.x + width, this._fuelRectangle.y, this._fuelRectangle.width - width, this._fuelRectangle.height);
+	this.graphics.endFill();
+	return this.fuel;
 }
 
 Game.Scoreboard.prototype.setLife = function(amount) {
@@ -63,11 +63,11 @@ Game.Scoreboard.prototype.setLife = function(amount) {
 	}
 	this.life = amount;
 	var width = this._lifeRectangle.width * amount / 100;
-    this.graphics.lineStyle(0, 0xFFFFFF, 0);
-    this.graphics.beginFill(0x000000);
-    this.graphics.drawRect(this._lifeRectangle.x + width, this._lifeRectangle.y, this._lifeRectangle.width - width, this._lifeRectangle.height);
-    this.graphics.endFill();
-    return this.life;
+	this.graphics.lineStyle(0, 0xFFFFFF, 0);
+	this.graphics.beginFill(0x000000);
+	this.graphics.drawRect(this._lifeRectangle.x + width, this._lifeRectangle.y, this._lifeRectangle.width - width, this._lifeRectangle.height);
+	this.graphics.endFill();
+	return this.life;
 }
 
 Game.Scoreboard.prototype.changeScore = function(change) {
@@ -76,17 +76,17 @@ Game.Scoreboard.prototype.changeScore = function(change) {
 }
 
 function preload() {
-    game.load.image('background', 'assets/background2.png');
-    game.load.spritesheet('ship', 'assets/ship.png', 70, 48, 4, 2, 2);
-    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
-    game.load.image('bullet', 'assets/bullet.png');
-    game.load.image('enemyBullet', 'assets/enemy-bullet.png');
-    game.load.spritesheet('kaboom', 'assets/explode.png', 128, 128);
+	game.load.image('background', 'assets/background2.png');
+	game.load.spritesheet('ship', 'assets/ship.png', 70, 48, 4, 2, 2);
+	game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+	game.load.image('bullet', 'assets/bullet.png');
+	game.load.image('enemyBullet', 'assets/enemy-bullet.png');
+	game.load.spritesheet('kaboom', 'assets/explode.png', 128, 128);
 
-    game.load.tilemap('level1', 'assets/level1.json', null, Phaser.Tilemap.TILED_JSON);
-    game.load.image('tiles-1', 'assets/tiles-1.png');
-    game.load.image('arrow-line', 'assets/longarrow.png');
-    game.load.image('arrow', 'assets/longarrow2.png');
+	game.load.tilemap('level1', 'assets/level1.json', null, Phaser.Tilemap.TILED_JSON);
+	game.load.image('tiles-1', 'assets/tiles-1.png');
+	game.load.image('arrow-line', 'assets/longarrow.png');
+	game.load.image('arrow', 'assets/longarrow2.png');
 }
 
 // World
@@ -103,14 +103,14 @@ var fireButton;
 // Ship
 var ship;
 var shipTween;
-var bullets;
-var shipShootTimer = 0;
+var shipBullets;
+var shipShootTime = 0;
 var fuelTimer = 0;
 
 // Enemies
 var enemies;
 var enemyBullets;
-var enemyShootTimer = 0;
+var enemyShootTime = 0;
 
 // Collectables
 var collectables;
@@ -119,85 +119,85 @@ var explosions;
 
 function create() {
 
-    //  This will run in Canvas mode, so let's gain a little speed and display
+	//  This will run in Canvas mode, so let's gain a little speed and display
 	game.renderer.clearBeforeRender = false;
 	game.renderer.roundPixels = true;
 
-    game.physics.startSystem(Phaser.Physics.ARCADE);
-    game.physics.arcade.gravity.y = 40;
+	game.physics.startSystem(Phaser.Physics.ARCADE);
+	game.physics.arcade.gravity.y = 40;
 
-    // Background
-    game.stage.backgroundColor = '#000000';
-    bg = game.add.tileSprite(0, 0, 800, 600, 'background');
-    bg.fixedToCamera = true;
+	// Background
+	game.stage.backgroundColor = '#000000';
+	bg = game.add.tileSprite(0, 0, 800, 600, 'background');
+	bg.fixedToCamera = true;
 
 	// Input
-    cursors = game.input.keyboard.createCursorKeys();
-    fireButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+	cursors = game.input.keyboard.createCursorKeys();
+	fireButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
-    // Ship
-    ship = game.add.sprite(100, 80, 'ship');
-    game.physics.enable(ship, Phaser.Physics.ARCADE);
+	// Ship
+	ship = game.add.sprite(50, 80, 'ship');
+	game.physics.enable(ship, Phaser.Physics.ARCADE);
 
-    ship.body.bounce.y = 0.2;
-    ship.body.collideWorldBounds = true;
-    ship.body.setSize(46, 46, 10, 0);
-    ship.anchor.set(0.70, 0.5);
-    ship.body.drag.set(game.physics.arcade.gravity.y / 2);
-    ship.body.maxVelocity.set(200);
-    shipTween = game.add.tween(ship).to({ angle: -80}, 1000).start();
+	ship.body.bounce.y = 0.2;
+	ship.body.collideWorldBounds = true;
+	ship.body.setSize(46, 46, 10, 0);
+	ship.anchor.set(0.70, 0.5);
+	ship.body.drag.set(game.physics.arcade.gravity.y / 2);
+	ship.body.maxVelocity.set(200);
+	shipTween = game.add.tween(ship).to({ angle: -80}, 1000).start();
 
-    game.camera.follow(ship);
+	game.camera.follow(ship);
 
-    // Add the walls (for level 1)
-    map = game.add.tilemap('level1');
-    map.addTilesetImage('tiles-1');
-    map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
+	// Add the walls (for level 1)
+	map = game.add.tilemap('level1');
+	map.addTilesetImage('tiles-1');
+	map.setCollisionByExclusion([ 13, 14, 15, 16, 46, 47, 48, 49, 50, 51 ]);
 
-    walls = map.createLayer('Walls');
-    walls.resizeWorld();
-    //  Un-comment this to see the collision tiles
-    //walls.debug = true;
+	walls = map.createLayer('Walls');
+	walls.resizeWorld();
+	//  Un-comment this to see the collision tiles
+	// walls.debug = true;
 
-    // Ship bullets
-    bullets = game.add.group();
-    bullets.enableBody = true;
-    bullets.physicsBodyType = Phaser.Physics.ARCADE;
-    bullets.createMultiple(30, 'bullet');
-    bullets.setAll('anchor.x', 0.5);
-    bullets.setAll('anchor.y', 1);
-    bullets.setAll('outOfBoundsKill', true);
-    bullets.setAll('checkWorldBounds', true);
-    bullets.setAll('body.allowGravity', false);
+	// Ship bullets
+	shipBullets = game.add.group();
+	shipBullets.enableBody = true;
+	shipBullets.physicsBodyType = Phaser.Physics.ARCADE;
+	shipBullets.createMultiple(30, 'bullet');
+	shipBullets.setAll('anchor.x', 0.5);
+	shipBullets.setAll('anchor.y', 1);
+	shipBullets.setAll('outOfBoundsKill', true);
+	shipBullets.setAll('checkWorldBounds', true);
+	shipBullets.setAll('body.allowGravity', false);
 
-    // Add the enemy
-    enemies = game.add.group();
-    enemies.enableBody = true;
-    enemies.physicsBodyType = Phaser.Physics.ARCADE;
-    map.createFromObjects('Enemy', 69, 'arrow', 0, true, false, enemies);
-    enemies.setAll('anchor.x', 0.25);
-    enemies.setAll('anchor.y', 0.5);
-    enemies.setAll('scale.x', 0.5);
-    enemies.setAll('scale.y', 0.5);
-    enemies.setAll('body.allowGravity', false);
+	// Add the enemy
+	enemies = game.add.group();
+	enemies.enableBody = true;
+	enemies.physicsBodyType = Phaser.Physics.ARCADE;
+	map.createFromObjects('Enemy', 69, 'arrow', 0, true, false, enemies);
+	enemies.setAll('anchor.x', 0.25);
+	enemies.setAll('anchor.y', 0.5);
+	enemies.setAll('scale.x', 0.5);
+	enemies.setAll('scale.y', 0.5);
+	enemies.setAll('body.allowGravity', false);
 
-    // Enemy bullets
-    enemyBullets = game.add.group();
-    enemyBullets.enableBody = true;
-    enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
-    enemyBullets.createMultiple(5, 'enemyBullet');
-    enemyBullets.setAll('anchor.x', 0.5);
-    enemyBullets.setAll('anchor.y', 1);
-    enemyBullets.setAll('outOfBoundsKill', true);
-    enemyBullets.setAll('checkWorldBounds', true);
-    enemyBullets.setAll('body.allowGravity', false);
+	// Enemy bullets
+	enemyBullets = game.add.group();
+	enemyBullets.enableBody = true;
+	enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
+	enemyBullets.createMultiple(30, 'enemyBullet');
+	enemyBullets.setAll('anchor.x', 0.5);
+	enemyBullets.setAll('anchor.y', 1);
+	enemyBullets.setAll('outOfBoundsKill', true);
+	enemyBullets.setAll('checkWorldBounds', true);
+	enemyBullets.setAll('body.allowGravity', false);
 
 	// Collectables (Dude)
-    collectables = game.add.group();
-    collectables.enableBody = true;
-    collectables.physicsBodyType = Phaser.Physics.ARCADE;
-    map.createFromObjects('Collectables', 71, 'dude', 0, true, false, collectables);
-    // TODO create other collectables here
+	collectables = game.add.group();
+	collectables.enableBody = true;
+	collectables.physicsBodyType = Phaser.Physics.ARCADE;
+	map.createFromObjects('Collectables', 71, 'dude', 0, true, false, collectables);
+	// TODO create other collectables here
 
 	collectables.forEach(function(sprite) {
 		// TODO check for gid == 71 or type == 'M' (from the Tiled map)
@@ -213,10 +213,10 @@ function create() {
 		sprite.animations.play('right');
 	});
 
-    //  An explosion pool
-    explosions = game.add.group();
-    explosions.createMultiple(10, 'kaboom');
-    explosions.forEach(function(sprite) {
+	//  An explosion pool
+	explosions = game.add.group();
+	explosions.createMultiple(10, 'kaboom');
+	explosions.forEach(function(sprite) {
 		sprite.anchor.set(0.5);
 		sprite.animations.add('kaboom');
 	}, this);
@@ -226,48 +226,48 @@ function create() {
 }
 
 function update() {
-    // Left / Right angular control
-    if (cursors.left.isDown) {
+	// Left / Right angular control
+	if (cursors.left.isDown) {
 		ship.body.angularVelocity = -300;
 		ship.frame = 1;
-    }
-    else if (cursors.right.isDown)
-    {
+	}
+	else if (cursors.right.isDown)
+	{
 		ship.body.angularVelocity = 300;
 		ship.frame = 0;
-    }
-    else
-    {
+	}
+	else
+	{
 		ship.body.angularVelocity = 0;
 		ship.frame = 3;
 	}
 	// Thrust control
-    if (cursors.up.isDown && scoreboard.fuel > 0)
-    {
+	if (cursors.up.isDown && scoreboard.fuel > 0)
+	{
 		if (game.time.now > fuelTimer) {
 			scoreboard.setFuel(scoreboard.fuel - map.properties.fuelExpense);
 			fuelTimer = game.time.now + 500;
 		}
-        game.physics.arcade.accelerationFromRotation(ship.rotation, 200, ship.body.acceleration);
+		game.physics.arcade.accelerationFromRotation(ship.rotation, 200, ship.body.acceleration);
 		ship.frame = 2;
-    }
-    else
-    {
-        ship.body.acceleration.set(0);
-		if (ship.frame > 1) {
-			ship.frame = 3;
-		}
-    }
+	}
+	else
+	{
+		ship.body.acceleration.set(0);
+ 		if (ship.frame > 1) {
+ 			ship.frame = 3;
+ 		}
+	}
 	// Firing?
 	if (fireButton.isDown)
 	{
 		//  To avoid them being allowed to fire too fast we set a time limit
-		if (game.time.now > shipShootTimer)
+		if (game.time.now > shipShootTime)
 		{
 			shipShoot();
 		}
 	}
-	if (game.time.now > enemyShootTimer)
+	if (game.time.now > enemyShootTime)
 	{
 		enemyShoot();
 	}
@@ -283,14 +283,22 @@ function update() {
 		}
 	});
 	game.physics.arcade.collide(collectables, walls, function(collectable, walls) {
+		// TODO Treat different collectables differently
+		// Debounce
+		if (collectable.nextTime && game.time.now < collectable.nextTime) {
+			return;
+		}
 		if (collectable.body.onWall()) {
-			if (collectable.animations.currentAnim.name == 'right') {
+			var currentAnim = collectable.animations.currentAnim.name;
+			if (currentAnim == 'right') {
 				collectable.body.velocity.x = -30;
 				collectable.animations.play('left');
-			} else if (collectable.animations.currentAnim.name == 'left') {
+			} else if (currentAnim == 'left') {
 				collectable.body.velocity.x = 30;
 				collectable.animations.play('right');
 			}
+			// Debounce the dude which otherwise may still be touching the wall
+			collectable.nextTime = game.time.now + 1000;
 		}
 	});
 	game.physics.arcade.overlap(ship, collectables, function(ship, collectable) {
@@ -300,103 +308,96 @@ function update() {
 		// TODO Add to score
 		scoreboard.changeScore(500);
 	});
-	game.physics.arcade.overlap([bullets, enemyBullets], walls, bulletHitsWall, null, this);
-	game.physics.arcade.overlap(bullets, enemies, bulletHitsEnemy, null, this);
+	game.physics.arcade.overlap([shipBullets, enemyBullets], walls, bulletHitsWall, null, this);
+	game.physics.arcade.overlap(shipBullets, enemies, bulletHitsEnemy, null, this);
 	game.physics.arcade.overlap(enemyBullets, ship, enemyBulletHitsShip, null, this);
 
 }
 
 function explosion(x, y) {
-    var explosion = explosions.getFirstExists(false);
-    explosion.reset(x, y);
-    explosion.play('kaboom', 30, false, true);
+	var explosion = explosions.getFirstExists(false);
+	if (explosion) {
+		explosion.reset(x, y);
+		explosion.play('kaboom', 30, false, true);
+	}
 }
 
 function bulletHitsWall(bullet, walls) {
-    // When a bullet hits a wall we kill the bullet and explode (with no damage to the wall)
-    bullet.kill();
-    explosion(bullet.body.x, bullet.body.y);
+	// When a bullet hits a wall we kill the bullet and explode (with no damage to the wall)
+	bullet.kill();
+	explosion(bullet.body.x, bullet.body.y);
 }
 
 function bulletHitsEnemy (bullet, enemy) {
 
-    // When a bullet hits an enemy we kill it
-    bullet.kill();
+	// When a bullet hits an enemy we kill it
+	bullet.kill();
 
-    //  And create an explosion :)
-    explosion(bullet.body.x, bullet.body.y);
+	//  And create an explosion :)
+	explosion(bullet.body.x, bullet.body.y);
 
-    // TODO Increase the score
-    scoreboard.changeScore(100);
-    // TODO map.properties
-//    score += 20;
-//    scoreText.text = scoreString + score;
+	// TODO Increase the score
+	scoreboard.changeScore(100);
+	// TODO map.properties
 
 	// TODO Damage the enemy
-    enemy.destroy();
+	enemy.destroy();
 
 }
 
 function enemyBulletHitsShip(ship,enemyBullet) {
-    enemyBullet.kill();
-    explosion(enemyBullet.body.x, enemyBullet.body.y);
-    
-    if (scoreboard.setLife(scoreboard.life - map.properties.lifeExpense) <= 0) {
+	enemyBullet.kill();
+	explosion(enemyBullet.body.x, enemyBullet.body.y);
+	
+	if (scoreboard.setLife(scoreboard.life - map.properties.lifeExpense) <= 0) {
 		ship.kill();
 	}
 
 }
 
 function enemyShoot () {
+	// If all the enemies are dead then do nothing.
 	if (enemies.length == 0) {
 		return;
 	}
-    // Grab the first bullet we can from the pool
-    enemyBullet = enemyBullets.getFirstExists(false);
-    if (enemyBullet) {        
-        // randomly select one of them
-        var shooter = enemies.getRandom();
-        // tween to point the enemy at the ship
+	// Grab the first bullet we can from the pool
+	var enemyBullet = enemyBullets.getFirstExists(false);
+	if (enemyBullet) {        
+		// randomly select one of them
+		var shooter = enemies.getRandom();
+		// tween to point the enemy at the ship
 		game.add.tween(shooter).to({ rotation: game.physics.arcade.angleBetween(shooter, ship)}, 400).start();
 		// Only shoot if the enemy has line of sight
-        var ray = new Phaser.Line(ship.x, ship.y, shooter.x, shooter.y);
-        var wallsInTheWay = walls.getRayCastTiles(ray, 8, true);
-        if (wallsInTheWay.length == 0) {
+		var ray = new Phaser.Line(ship.x, ship.y, shooter.x, shooter.y);
+		var wallsInTheWay = walls.getRayCastTiles(ray, 8, true);
+		if (wallsInTheWay.length == 0) {
 			// Then fire the bullet from this enemy
 			enemyBullet.reset(shooter.body.x, shooter.body.y);
 			game.physics.arcade.moveToObject(enemyBullet, ship, 120); // TODO map.properties
+			enemyShootTime = game.time.now + parseInt(map.properties.enemyShootTime);
 		}
-		enemyShootTimer = game.time.now + parseInt(map.properties.enemyShootTime);
-    }
+	}
 
 }
 
 function shipShoot  () {
 	// Grab the first bullet we can from the pool
-	bullet = bullets.getFirstExists(false);
+	var bullet = shipBullets.getFirstExists(false);
 	if (bullet)
 	{
 		// And fire it
 		bullet.reset(ship.x, ship.y); // TODO Get a better start position for the bullet based on angle
 		bullet.rotation = ship.rotation; 
 		game.physics.arcade.velocityFromRotation(ship.rotation, 300, bullet.body.velocity);
-		shipShootTimer = game.time.now + 200; // TODO map.properties
+		shipShootTime = game.time.now + 500; // TODO map.properties
 	}
-
-}
-
-function resetBullet(bullet) { // TODO Used?
-
-    // Called if the bullet goes out of the screen // TODO FIX
-    bullet.kill();
-
 }
 
 function render () {
 
-    //game.debug.text(game.time.physicsElapsed, 32, 32);
-    //game.debug.body(ship);
-    //game.debug.bodyInfo(enemies, 16, 24);
-    //game.debug.body(bullets);
+	//game.debug.text(game.time.physicsElapsed, 32, 32);
+	//game.debug.body(ship);
+	//game.debug.bodyInfo(enemies, 16, 24);
+	//game.debug.body(bullets);
 
 }
