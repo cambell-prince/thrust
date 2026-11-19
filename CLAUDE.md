@@ -8,13 +8,14 @@ A small 2D browser game in plain JavaScript on **Phaser 2.2.x** (the CE/v2 API, 
 
 ## Running
 
-Vite handles the dev server and build (Node >= 22.12). There is no test suite or linter.
+Vite handles the dev server and build (Node >= 22.12). There is no linter.
 
 - `npm install`, then `npm run dev` starts the dev server with live reload.
 - `npm run build` writes `dist/`, and `npm run preview` serves it.
 - `npm run package` builds and writes `thrust-<version>.tgz` from `dist/`.
-- `npm run deploy` builds and rsyncs `dist/` to the public demo server via `scripts/deploy.sh`. It is outward-facing, so don't run it unless asked.
-- CI (`.github/workflows/build.yml`) runs `node --check js/thrust.js` and `npm run build`.
+- `npm test` runs `node --check js/thrust.js` and then the `node:test` suites in `tests/`. They check that every asset path in `js/thrust.js` exists under `public/`, that `level1.json` has the layers, gids and numeric properties the game uses, and that a production build (into a temp dir) has relative paths only.
+- `npm run deploy` builds and rsyncs `dist/` to the public demo server via `scripts/deploy.sh`. It is outward-facing, so don't run it unless asked. By default the script logs in as `root` and runs rsync as `vu2006`. `DEPLOY_USER`, `DEPLOY_HOST`, `DEPLOY_PATH`, `DEPLOY_SUDO_USER` and `DEPLOY_SSH` override that.
+- CI (`.github/workflows/ci.yml`) runs `npm test` and `npm run build` on every push and PR. A green push to `master` (or a manual run on master) then deploys the built `dist/` to aws1.saygoweb.com as `vu2006`, into `./demo/htdocs/thrust/`. The `demo` GitHub environment holds the secrets `DEPLOY_KEY` and (optionally) `DEPLOY_KNOWN_HOSTS`, and the optional vars `DEPLOY_USER`/`DEPLOY_HOST`/`DEPLOY_PATH` override those defaults.
 
 Layout:
 - `index.html` loads `js/phaser.min.js` as a classic script, so `Phaser` is a browser global. It then loads `js/thrust.js` as a **module** script, which Vite bundles. Vite logs a warning that the classic script "can't be bundled"; that's expected.

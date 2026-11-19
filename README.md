@@ -20,7 +20,10 @@ Requires Node 22.12+.
 npm install
 npm run dev      # dev server with live reload
 npm run build    # production build in dist/
+npm test         # syntax check, asset/level checks and a test build
 ```
+
+CI (`.github/workflows/ci.yml`) tests and builds every push and pull request. When a push to `master` passes, CI deploys it to the demo site.
 
 ## Status
 
