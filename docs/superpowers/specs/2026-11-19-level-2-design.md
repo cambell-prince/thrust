@@ -17,7 +17,7 @@ finishing level 2 shows an end screen, and SPACE there starts a new game from le
   at the start of every level.
 - **End of the game:** after the last level, the banner reads `ALL MISSIONS COMPLETE`
   and waits for SPACE (it has no timer). SPACE starts level 1 with score 0.
-- **The ship starts above its level's habitat**, not at a hard-coded point.
+- **The ship starts above the ground beside its level's habitat**, not at a hard-coded point.
 - **`?level=N` in the URL** starts on level N (1-based) for map editing and tests.
 - **Level 2 is drafted by Claude** from tiles-1 and refined by the user in Tiled
   afterwards. The `.tmx` is the source of truth once committed. The throwaway script
@@ -38,10 +38,13 @@ export function nextLevelIndex(index)     // index + 1, or 0 after the last leve
 export function levelIndexFromSearch(search)
 	// '?level=2' → 1. A missing, non-integer or out-of-range value → 0.
 export function shipStartPosition(habitat, mapWidth)
-	// habitat = { x, y, width } (the Tiled rectangle). Returns
-	// { x: habitat.x + habitat.width / 2, y: Math.max(SHIP_START_MIN_Y, habitat.y - SHIP_START_ABOVE) },
-	// with x clamped to [SHIP_START_MARGIN, mapWidth - SHIP_START_MARGIN].
-export const SHIP_START_ABOVE = 200, SHIP_START_MIN_Y = 40, SHIP_START_MARGIN = 40;
+	// habitat = { x, y, width } (the Tiled rectangle). The ship starts beside the
+	// habitat, not over it (it would land on the dome):
+	// x = habitat.x - SHIP_START_BESIDE, or habitat.x + habitat.width + SHIP_START_BESIDE
+	//     when that left position is below SHIP_START_MARGIN; then clamped to
+	//     [SHIP_START_MARGIN, mapWidth - SHIP_START_MARGIN].
+	// y = Math.max(SHIP_START_MIN_Y, habitat.y - SHIP_START_ABOVE).
+export const SHIP_START_BESIDE = 48, SHIP_START_ABOVE = 200, SHIP_START_MIN_Y = 40, SHIP_START_MARGIN = 40;
 ```
 
 When a map has no habitat, the scene falls back to the old start point (50, 80).
@@ -89,7 +92,9 @@ level number as a fourth constructor argument.
   (`tiles-1` 1, `enemies` 69, `collectables` 71) and the same Tiled format as level1's
   files (CSV in the tmx; the old-style JSON with properties as an object of strings).
 - Layers: `Walls`, `Enemy` (5 objects, gid 69), `Collectables` (3 objects, gid 71),
-  `Habitat` (one rectangle, 48 × 48, standing on a ledge near the top right).
+  `Habitat` (one rectangle, 48 × 48, standing on a ledge near the top right). The
+  ledge's solid surface extends at least 80 px (5 tiles) beyond the rectangle on both
+  sides, with open space above, so a ship can land on either side.
 - Map properties: `enemyShootTime` 1800, `lifeExpense` 25, `fuelExpense` 1.
 - Shape: open sky over the top-right habitat ledge, then a winding shaft descending
   to the bottom with side caverns. Each dude stands on a floor in a cavern, and each
@@ -102,8 +107,8 @@ level number as a fourth constructor argument.
 
 - **Unit (`tests/unit/levels.test.js`):** `isLastLevel` and `nextLevelIndex`, including
   wrapping. `levelIndexFromSearch` for `?level=1`, `?level=2`, missing, `?level=0`,
-  `?level=3`, `?level=abc` and `?level=1.5`. `shipStartPosition` for centring, the
-  height above, `SHIP_START_MIN_Y` and clamping at both sides.
+  `?level=3`, `?level=abc` and `?level=1.5`. `shipStartPosition` for the left-of-habitat
+  start, the right-hand fallback, the height above, `SHIP_START_MIN_Y` and clamping.
 - **`tests/level.test.js`** runs over every map in `LEVELS`:
   - the required layers and gids, and numeric tuning properties
   - the Walls data size, and a habitat on solid ground in open space
