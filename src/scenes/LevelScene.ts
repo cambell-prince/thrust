@@ -57,7 +57,6 @@ const SHIP_THRUST = 200;
 const SHIP_MAX_SPEED = 200;
 const SHIP_BULLET_SPEED = 300;
 const ENEMY_BULLET_SPEED = 120; // TODO map.properties
-const ENEMY_MUZZLE = 16; // px from an enemy's pivot, toward the ship, where its shot starts
 const BULLET_POOL = 30;
 
 const SHIP_SCORE_ENEMY = 100; // TODO map.properties
@@ -521,11 +520,12 @@ export class LevelScene extends Phaser.Scene {
 		if (!this.hasLineOfSight(shooter, ship)) {
 			return;
 		}
-		// Fire from a point on the line just checked, so the shot starts clear of walls and inside the
-		// map even when the enemy hugs rock or sits on the map's edge.
+		// The arrow's head is the gun's base, at the pivot; its tail is the barrel. The shot leaves the
+		// barrel's tip, measured along the line just checked, so it starts clear of walls and in the map.
 		const aim = Phaser.Math.Angle.BetweenPoints(shooter, ship);
-		const muzzleX = shooter.x + Math.cos(aim) * ENEMY_MUZZLE;
-		const muzzleY = shooter.y + Math.sin(aim) * ENEMY_MUZZLE;
+		const barrel = shooter.displayWidth * (1 - shooter.originX);
+		const muzzleX = shooter.x + Math.cos(aim) * barrel;
+		const muzzleY = shooter.y + Math.sin(aim) * barrel;
 		const bullet = this.enemyBullets.get(muzzleX, muzzleY) as Sprite | null;
 		if (!bullet) {
 			return;

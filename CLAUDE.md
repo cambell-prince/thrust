@@ -56,7 +56,7 @@ Layout:
 - Colliders and overlaps are registered once in `addColliders()`, not every frame. Arcade calls back with a lone sprite first and a group member second, whatever order they are passed in, so the code passes the sprite first.
 - **An overlap against a tilemap layer tests every tile, empty ones included.** The bullet-vs-wall overlaps therefore take a process callback that returns `tile.collides`. Colliders filter tiles themselves.
 - Bullets and explosions are **pools**: `group.get()`, then `enableBody(true, x, y, true, true)` to fire and `disableBody(true, true)` to kill. A bullet that leaves the world is killed in `update()`. An enemy that is hit is `destroy()`ed, not disabled, so it can't be picked as a shooter.
-- Enemies fire only when `hasLineOfSight()` finds no colliding wall tiles on the line from their pivot to the ship (`getTilesWithinShape`). The shot starts `ENEMY_MUZZLE` px along that line, so it starts clear of walls and inside the map.
+- Enemies fire only when `hasLineOfSight()` finds no colliding wall tiles on the line from their pivot to the ship (`getTilesWithinShape`). The arrow sprite is a gun: its head is the base, at the pivot (origin 0.25), and its tail is the barrel, turned toward the ship. The shot starts at the barrel's tip (27 px) along that line, so it starts clear of walls and inside the map.
 
 ### Levels (Tiled)
 
