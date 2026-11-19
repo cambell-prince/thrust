@@ -12,6 +12,9 @@ export const SHIP_START_ABOVE = 200;
 export const SHIP_START_MIN_Y = 40;
 /** The closest (px) the ship may start to the map's left or right edge. */
 export const SHIP_START_MARGIN = 40;
+/** The ship's body spans this far (px) left and right of the start x (the 46 px body at offset 27 of the 70 px sprite, origin 0.7). */
+export const SHIP_BODY_LEFT = 22;
+export const SHIP_BODY_RIGHT = 24;
 
 export function isLastLevel(index) {
 	return index >= LEVELS.length - 1;
@@ -41,7 +44,7 @@ export function shipStartPosition(habitat, mapWidth) {
 	const left = habitat.x - SHIP_START_BESIDE;
 	const right = habitat.x + habitat.width + SHIP_START_BESIDE;
 	const clamp = (value) => Math.min(Math.max(value, SHIP_START_MARGIN), mapWidth - SHIP_START_MARGIN);
-	const onHabitat = (value) => value >= habitat.x && value <= habitat.x + habitat.width;
+	const onHabitat = (value) => value + SHIP_BODY_RIGHT > habitat.x && value - SHIP_BODY_LEFT < habitat.x + habitat.width;
 	const [first, other] = left < SHIP_START_MARGIN ? [right, left] : [left, right];
 	let x = clamp(first);
 	if (onHabitat(x) && !onHabitat(clamp(other))) {

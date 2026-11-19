@@ -26,7 +26,7 @@ const SHIP_SCORE_RESCUE = 500;
 const UNLOAD_INTERVAL = 600; // ms between dudes leaving the ship
 const BACKGROUND_DEPTH = -2;
 const HABITAT_DEPTH = -1; // above the background, below the ship and walls
-const WALLS_DEPTH = 1; // above the ship (0), so walls draw over it
+const SHIP_DEPTH = -0.5; // above the habitat, below the walls (0) so the ship passes behind rock
 const DEFAULT_SHIP_START = { x: 50, y: 80 }; // for a map without a habitat
 const UNLOAD_WALK_SPEED = PATROL_SPEED * 2; // px/s, walking to the habitat door
 const RESTART_DELAY = 5000; // ms the mission-complete banner shows before the next level starts
@@ -69,7 +69,7 @@ export class LevelScene extends Phaser.Scene {
 
 		this.createAnimations();
 
-		// Depths: background (BACKGROUND_DEPTH) < habitat (HABITAT_DEPTH) < ship (0) < walls (WALLS_DEPTH).
+		// Depths: background (BACKGROUND_DEPTH) < habitat (HABITAT_DEPTH) < ship (SHIP_DEPTH) < walls and everything else (0, in creation order).
 		this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background').setOrigin(0).setScrollFactor(0)
 			.setDepth(BACKGROUND_DEPTH);
 
@@ -110,7 +110,7 @@ export class LevelScene extends Phaser.Scene {
 	createShip() {
 		const start = this.habitatBox ? shipStartPosition(this.habitatBox, this.map.widthInPixels) : DEFAULT_SHIP_START;
 		const ship = this.physics.add.sprite(start.x, start.y, 'ship', SHIP_FRAME.IDLE);
-		ship.setOrigin(0.7, 0.5);
+		ship.setOrigin(0.7, 0.5).setDepth(SHIP_DEPTH);
 		ship.body.setSize(46, 46, false).setOffset(27, 1);
 		ship.setBounce(0, 0.2);
 		ship.setCollideWorldBounds(true);
@@ -125,7 +125,7 @@ export class LevelScene extends Phaser.Scene {
 		this.map = this.make.tilemap({ key: LEVELS[this.levelIndex].key });
 		const tiles = this.map.addTilesetImage('tiles-1');
 		this.walls = this.map.createLayer('Walls', tiles);
-		this.walls.setCollisionByExclusion(NON_SOLID_TILES).setDepth(WALLS_DEPTH);
+		this.walls.setCollisionByExclusion(NON_SOLID_TILES);
 
 		const { widthInPixels, heightInPixels } = this.map;
 		this.physics.world.setBounds(0, 0, widthInPixels, heightInPixels);

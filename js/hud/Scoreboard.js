@@ -15,10 +15,11 @@ export class Scoreboard {
 		this.status = status;
 		this.mission = mission;
 		this.graphics = scene.add.graphics();
+		this.missionLabel = scene.add.text(390, 7, `MISSION ${levelNumber}`, TEXT_STYLE);
 		const labels = [
 			scene.add.text(10, 7, 'LIFE', TEXT_STYLE),
 			scene.add.text(200, 7, 'FUEL', TEXT_STYLE),
-			scene.add.text(390, 7, `MISSION ${levelNumber}`, TEXT_STYLE),
+			this.missionLabel,
 			scene.add.text(580, 7, 'SCORE', TEXT_STYLE),
 		];
 		this.missionText = scene.add.text(460, 7, '', TEXT_STYLE);
