@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	isLastLevel, LEVELS, levelIndexFromSearch, nextLevelIndex, shipStartPosition,
 	SHIP_BODY_LEFT, SHIP_BODY_RIGHT, SHIP_START_ABOVE, SHIP_START_BESIDE, SHIP_START_MARGIN, SHIP_START_MIN_Y,
-} from '../../js/logic/levels.ts';
+} from '../../src/logic/levels.ts';
 
 describe('LEVELS', () => {
 	it('lists level1 then level2 with their map files', () => {

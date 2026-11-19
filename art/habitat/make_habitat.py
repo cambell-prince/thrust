@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Draws public/assets/habitat.png: a 48x48 pixel-art dome habitat with a door at the bottom centre.
 
-Run from the repo root:  python3 src/assets/habitat/make_habitat.py
+Run from the repo root:  python3 art/habitat/make_habitat.py
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 SIZE = 48
-OUT = Path(__file__).resolve().parents[3] / 'public' / 'assets' / 'habitat.png'
+OUT = Path(__file__).resolve().parents[2] / 'public' / 'assets' / 'habitat.png'
 
 HULL = (150, 160, 175, 255)
 HULL_SHADE = (95, 105, 125, 255)

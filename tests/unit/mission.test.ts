@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canUnload, FLOOR_TOLERANCE, HABITAT_RANGE, LANDED_SPEED, Mission, UPRIGHT_TOLERANCE } from '../../js/logic/mission.ts';
+import { canUnload, FLOOR_TOLERANCE, HABITAT_RANGE, LANDED_SPEED, Mission, UPRIGHT_TOLERANCE } from '../../src/logic/mission.ts';
 
 describe('Mission', () => {
 	it('starts with nothing aboard or delivered', () => {

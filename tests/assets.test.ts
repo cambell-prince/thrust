@@ -3,10 +3,10 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LEVELS } from '../js/logic/levels.ts';
+import { LEVELS } from '../src/logic/levels.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const source = readFileSync(root + 'js/scenes/LevelScene.ts', 'utf8');
+const source = readFileSync(root + 'src/scenes/LevelScene.ts', 'utf8');
 // this.load.image('key', 'file.png') etc., relative to load.setPath('assets/').
 const literalLoads = [...source.matchAll(/this\.load\.\w+\('([^']+)',\s*'([^']+)'/g)].map((m) => ({ key: m[1], file: m[2] }));
 const loads = literalLoads;
@@ -33,7 +33,7 @@ test('every file the level scene loads exists under public/assets/', () => {
 
 test('index.html loads the game module, with Phaser bundled from npm rather than vendored', () => {
 	const html = readFileSync(root + 'index.html', 'utf8');
-	assert.match(html, /<script type="module" src="js\/main\.ts">/);
+	assert.match(html, /<script type="module" src="src\/main\.ts">/);
 	assert.doesNotMatch(html, /phaser\.min\.js/);
 	assert.ok(!existsSync(root + 'public/js/phaser.min.js'));
 });
