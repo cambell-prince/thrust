@@ -22,7 +22,7 @@ All audio lives in `public/assets/audio/` and is committed.
 
 ### Sound effects (generated)
 
-`scripts/make-sfx.mjs` (plain Node, no dependencies; `npm run sfx`) synthesizes sfxr-style sounds
+`scripts/make-sfx.js` (plain Node, no dependencies; `npm run sfx`) synthesizes sfxr-style sounds
 (square, saw and noise oscillators, pitch slides, attack/decay envelopes) and writes mono 16-bit
 44.1 kHz WAV files. The output is deterministic (a seeded PRNG for noise), so re-running it gives
 the same files. Each sound's parameters are a named entry in the script, so tweaking one and
