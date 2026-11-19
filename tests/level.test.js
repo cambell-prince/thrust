@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { NON_SOLID_TILES } from '../js/logic/tiled.js';
-import { LEVELS, shipStartPosition } from '../js/logic/levels.js';
+import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../js/logic/levels.js';
 import { HABITAT_RANGE } from '../js/logic/mission.js';
 import { reachableBoxes } from './helpers/reachability.js';
 
@@ -100,6 +100,21 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 			assert.ok(solid(walls.data[groundRow * walls.width + col]), `no ledge at column ${col}`);
 			for (let row = groundRow - 3; row < groundRow; row++) {
 				assert.ok(!solid(walls.data[row * walls.width + col]), `rock above the ledge at ${col},${row}`);
+			}
+		}
+	});
+
+	test('the ship starts in open space', () => {
+		const walls = layer('Walls');
+		const { tilewidth: tw, tileheight: th } = map;
+		const [box] = layer('Habitat').objects;
+		const start = shipStartPosition(box, walls.width * tw);
+		// The ship's body: x - 22 .. x + 24 and y - 23 .. y + 23 (46 px square).
+		const left = start.x - SHIP_BODY_LEFT, right = start.x + SHIP_BODY_RIGHT;
+		const top = start.y - 23, bottom = start.y + 23;
+		for (let row = Math.floor(top / th); row <= Math.floor((bottom - 1) / th); row++) {
+			for (let col = Math.floor(left / tw); col <= Math.floor((right - 1) / tw); col++) {
+				assert.ok(!solid(wallGid(row, col)), `rock under the ship's start body (x ${left}..${right}, y ${top}..${bottom}) at tile ${col},${row}`);
 			}
 		}
 	});

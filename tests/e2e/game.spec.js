@@ -93,8 +93,15 @@ test('boots Phaser 4 and builds the level from the Tiled map', async ({ page }) 
 		hud: scene.scoreboard.scoreText.text,
 		mission: scene.scoreboard.missionText.text,
 		habitat: Boolean(scene.habitat),
+		// Depth: the ship is under the walls; enemies and everything else created later draw over them.
+		shipUnderWalls: scene.ship.depth < scene.walls.depth,
+		enemyOverWalls: scene.enemies.getChildren()[0].depth >= scene.walls.depth,
+		wallsBeforeEnemy: scene.children.getIndex(scene.walls) < scene.children.getIndex(scene.enemies.getChildren()[0]),
 	}));
 
+	expect(level.shipUnderWalls).toBe(true);
+	expect(level.enemyOverWalls).toBe(true);
+	expect(level.wallsBeforeEnemy).toBe(true);
 	expect(level.enemies).toEqual(['1', '2', '3']);
 	expect(level.collectables).toEqual(['dude-right', 'dude-right']);
 	expect(level.tuning).toEqual({ fuelExpense: 1, lifeExpense: 20, enemyShootTime: 2500 });
@@ -244,7 +251,9 @@ test('?level=2 boots level 2, and a bad ?level= boots level 1', async ({ page })
 	await openGame(page, '?level=2');
 	expect(await inScene(page, (scene) => ({ level: scene.levelIndex, mission: scene.scoreboard.missionText.text, dudes: scene.collectables.getLength() })))
 		.toEqual({ level: 1, mission: '0/3', dudes: 3 });
+	expect(await inScene(page, (scene) => scene.scoreboard.missionLabel.text)).toBe('MISSION 2');
 	await openGame(page, '?level=abc');
+	expect(await inScene(page, (scene) => scene.scoreboard.missionLabel.text)).toBe('MISSION 1');
 	expect(await inScene(page, (scene) => scene.levelIndex)).toBe(0);
 });
 

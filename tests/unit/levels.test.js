@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	isLastLevel, LEVELS, levelIndexFromSearch, nextLevelIndex, shipStartPosition,
-	SHIP_START_ABOVE, SHIP_START_BESIDE, SHIP_START_MARGIN, SHIP_START_MIN_Y,
+	SHIP_BODY_LEFT, SHIP_BODY_RIGHT, SHIP_START_ABOVE, SHIP_START_BESIDE, SHIP_START_MARGIN, SHIP_START_MIN_Y,
 } from '../../js/logic/levels.js';
 
 describe('LEVELS', () => {
@@ -67,7 +67,17 @@ describe('shipStartPosition', () => {
 	});
 
 	it('tries the other side when the clamped start lands on the habitat', () => {
-		expect(shipStartPosition({ x: 60, y: 288, width: 940 }, 1024).x).toBe(40);
+		// Both sides overlap the habitat: the 984 start (body 962..1008) and the 40 start (body 18..64, over x 60).
+		// This was 40 before the body width counted; now the first clamped value is kept.
+		expect(shipStartPosition({ x: 60, y: 288, width: 940 }, 1024).x).toBe(1024 - SHIP_START_MARGIN);
+	});
+
+	it('counts the ship body, not just its x, as over the habitat', () => {
+		expect(SHIP_BODY_LEFT).toBe(22);
+		expect(SHIP_BODY_RIGHT).toBe(24);
+		// The right start clamps to 984 (body 962..1008), past the habitat's right edge (974) by x alone but
+		// overlapping it by body; the left start 40 (body 18..64) is clear of the habitat at 80.
+		expect(shipStartPosition({ x: 80, y: 288, width: 894 }, 1024).x).toBe(40);
 	});
 
 	it('keeps the clamped start when neither side is off the habitat', () => {

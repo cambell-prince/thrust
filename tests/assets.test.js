@@ -9,22 +9,20 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const source = readFileSync(root + 'js/scenes/LevelScene.js', 'utf8');
 // this.load.image('key', 'file.png') etc., relative to load.setPath('assets/').
 const literalLoads = [...source.matchAll(/this\.load\.\w+\('([^']+)',\s*'([^']+)'/g)].map((m) => ({ key: m[1], file: m[2] }));
-// The level maps are loaded in a loop over LEVELS: for (const { key, file } of LEVELS) { this.load.tilemapTiledJSON(key, file); }
-const loadsLevels = /for \(const \{ key, file \} of LEVELS\) \{\s*this\.load\.tilemapTiledJSON\(key, file\);/.test(source);
-const loads = [...literalLoads, ...(loadsLevels ? LEVELS : [])];
+const loads = literalLoads;
 
 test('the level scene loads the core assets from assets/', () => {
 	assert.match(source, /this\.load\.setPath\('assets\/'\)/);
-	for (const key of ['ship', 'tiles-1', 'level1']) {
+	for (const key of ['ship', 'tiles-1']) {
 		assert.ok(loads.some((l) => l.key === key), `no load for '${key}'`);
 	}
 });
 
-test('the level scene loads every map in LEVELS', () => {
-	assert.ok(loadsLevels, 'no tilemapTiledJSON loop over LEVELS');
+test('every map in LEVELS exists under public/assets/ and the scene loads maps', () => {
 	assert.ok(LEVELS.length >= 2);
 	const missing = LEVELS.map((l) => l.file).filter((file) => !existsSync(root + 'public/assets/' + file));
 	assert.deepEqual(missing, []);
+	assert.match(source, /tilemapTiledJSON\(/);
 });
 
 test('every file the level scene loads exists under public/assets/', () => {
