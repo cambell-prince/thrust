@@ -270,7 +270,8 @@ test('?level=2 boots level 2, and a bad ?level= boots level 1', async ({ page })
 
 test('completing the last level shows ALL MISSIONS COMPLETE, waits, and SPACE starts a new game', async ({ page }) => {
 	const errors = await openGame(page, '?level=2');
-	await inScene(page, (scene) => scene.status.changeScore(1000));
+	// Hold enemy fire: on a slow runner the ship sits by the habitat long enough to be shot down.
+	await inScene(page, (scene) => { scene.status.changeScore(1000); scene.enemyFire.trigger(scene.time.now, 1e9); });
 	await rescueAll(page);
 	await landBesideHabitat(page);
 	await expect.poll(() => inScene(page, (scene) => scene.levelComplete), { timeout: 20_000 }).toBe(true);

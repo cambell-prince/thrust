@@ -4,8 +4,8 @@ import { LevelScene } from './scenes/LevelScene.ts';
 
 const game = new Phaser.Game({
 	type: Phaser.AUTO,
-	width: 800,
-	height: 600,
+	width: 1200,
+	height: 900,
 	backgroundColor: '#000000',
 	roundPixels: true,
 	physics: {
