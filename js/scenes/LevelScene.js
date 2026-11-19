@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Scoreboard } from '../hud/Scoreboard.js';
 import { Cooldown } from '../logic/cooldown.js';
 import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.js';
+import { isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.js';
 import { numberProperty } from '../logic/mapProperties.js';
 import { canUnload, Mission } from '../logic/mission.js';
 import { PATROL_SPEED, reversePatrol } from '../logic/patrol.js';
@@ -25,13 +26,22 @@ const SHIP_SCORE_RESCUE = 500;
 const UNLOAD_INTERVAL = 600; // ms between dudes leaving the ship
 const BACKGROUND_DEPTH = -2;
 const HABITAT_DEPTH = -1; // above the background, below the ship and walls
+const SHIP_DEPTH = -0.5; // above the habitat, below the walls (0) so the ship passes behind rock
+const DEFAULT_SHIP_START = { x: 50, y: 80 }; // for a map without a habitat
 const UNLOAD_WALK_SPEED = PATROL_SPEED * 2; // px/s, walking to the habitat door
-const RESTART_DELAY = 5000; // ms the mission-complete banner shows before restarting
+const RESTART_DELAY = 5000; // ms the mission-complete banner shows before the next level starts
 const BANNER_DEPTH = 200; // above the HUD (100)
 
 export class LevelScene extends Phaser.Scene {
 	constructor() {
 		super('Level');
+	}
+
+	/** `data.levelIndex` picks the level (0-based); `data.score` is carried over from the last one. */
+	init(data) {
+		const index = data?.levelIndex ?? 0;
+		this.levelIndex = Number.isInteger(index) && index >= 0 && index < LEVELS.length ? index : 0;
+		this.carriedScore = data?.score ?? 0;
 	}
 
 	preload() {
@@ -45,25 +55,28 @@ export class LevelScene extends Phaser.Scene {
 		this.load.image('arrow', 'longarrow2.png');
 		this.load.image('tiles-1', 'tiles-1.png');
 		this.load.image('habitat', 'habitat.png');
-		this.load.tilemapTiledJSON('level1', 'level1.json');
+		for (const { key, file } of LEVELS) {
+			this.load.tilemapTiledJSON(key, file);
+		}
 	}
 
 	create() {
 		this.status = new ShipStatus();
+		this.status.changeScore(this.carriedScore);
 		this.shipFire = new Cooldown(500); // TODO map.properties
 		this.fuelTick = new Cooldown(500);
 		this.enemyFire = new Cooldown(0);
 
 		this.createAnimations();
 
-		// Depths: background (BACKGROUND_DEPTH) < habitat (HABITAT_DEPTH) < ship and walls (0, in creation order).
+		// Depths: background (BACKGROUND_DEPTH) < habitat (HABITAT_DEPTH) < ship (SHIP_DEPTH) < walls and everything else (0, in creation order).
 		this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background').setOrigin(0).setScrollFactor(0)
 			.setDepth(BACKGROUND_DEPTH);
 
-		// The ship is created before the walls so that the walls draw over it.
-		this.createShip();
+		// The ship starts beside the habitat, so the map and habitat come first.
 		this.createLevel();
 		this.createHabitat();
+		this.createShip();
 
 		this.shipBullets = this.createBulletPool('bullet');
 		this.enemies = this.createEnemies();
@@ -77,7 +90,7 @@ export class LevelScene extends Phaser.Scene {
 		this.banner = undefined;
 		this.explosions = this.add.group({ defaultKey: 'kaboom', maxSize: 10 });
 
-		this.scoreboard = new Scoreboard(this, this.status, this.mission);
+		this.scoreboard = new Scoreboard(this, this.status, this.mission, this.levelIndex + 1);
 
 		this.cursors = this.input.keyboard.createCursorKeys();
 		this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -95,8 +108,9 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	createShip() {
-		const ship = this.physics.add.sprite(50, 80, 'ship', SHIP_FRAME.IDLE);
-		ship.setOrigin(0.7, 0.5);
+		const start = this.habitatBox ? shipStartPosition(this.habitatBox, this.map.widthInPixels) : DEFAULT_SHIP_START;
+		const ship = this.physics.add.sprite(start.x, start.y, 'ship', SHIP_FRAME.IDLE);
+		ship.setOrigin(0.7, 0.5).setDepth(SHIP_DEPTH);
 		ship.body.setSize(46, 46, false).setOffset(27, 1);
 		ship.setBounce(0, 0.2);
 		ship.setCollideWorldBounds(true);
@@ -108,7 +122,7 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	createLevel() {
-		this.map = this.make.tilemap({ key: 'level1' });
+		this.map = this.make.tilemap({ key: LEVELS[this.levelIndex].key });
 		const tiles = this.map.addTilesetImage('tiles-1');
 		this.walls = this.map.createLayer('Walls', tiles);
 		this.walls.setCollisionByExclusion(NON_SOLID_TILES);
@@ -130,6 +144,7 @@ export class LevelScene extends Phaser.Scene {
 		this.habitat = null;
 		this.habitatZone = null;
 		const [box] = this.map.getObjectLayer('Habitat')?.objects ?? [];
+		this.habitatBox = box ?? null;
 		if (!box) {
 			return;
 		}
@@ -255,7 +270,10 @@ export class LevelScene extends Phaser.Scene {
 		return this.walkingDudes > 0;
 	}
 
-	/** Freeze play, show the mission-complete banner, and restart on SPACE or after RESTART_DELAY. */
+	/**
+	 * Freeze play and show the mission-complete banner. SPACE, or RESTART_DELAY, goes on to the next
+	 * level with the score; after the last level only SPACE does, and it starts a new game.
+	 */
 	completeLevel() {
 		if (this.levelComplete) {
 			return;
@@ -272,11 +290,12 @@ export class LevelScene extends Phaser.Scene {
 		const { width, height } = this.scale;
 		const style = { fontFamily: 'Arial', fontSize: '32px', color: '#ffd900', align: 'center' };
 		const small = { ...style, fontSize: '18px', color: '#ffffff' };
-		const backdrop = this.add.rectangle(0, 0, 360, 150, 0x000000, 0.7).setStrokeStyle(2, 0xffd900);
+		const backdrop = this.add.rectangle(0, 0, 440, 150, 0x000000, 0.7).setStrokeStyle(2, 0xffd900);
+		const last = isLastLevel(this.levelIndex);
 		const lines = [
-			this.add.text(0, -40, 'MISSION COMPLETE', style).setOrigin(0.5),
+			this.add.text(0, -40, last ? 'ALL MISSIONS COMPLETE' : 'MISSION COMPLETE', style).setOrigin(0.5),
 			this.add.text(0, 5, `SCORE ${this.status.score}`, small).setOrigin(0.5),
-			this.add.text(0, 40, 'PRESS SPACE', small).setOrigin(0.5),
+			this.add.text(0, 40, last ? 'PRESS SPACE TO PLAY AGAIN' : `PRESS SPACE FOR LEVEL ${nextLevelIndex(this.levelIndex) + 1}`, small).setOrigin(0.5),
 		];
 		this.banner = this.add.container(width / 2, height / 2, [backdrop, ...lines])
 			.setScrollFactor(0)
@@ -284,16 +303,20 @@ export class LevelScene extends Phaser.Scene {
 
 		// A fresh press only: a fire key already held when the level ends must not skip the banner.
 		// Phaser emits no keydown-SPACE for auto-repeats of a registered key (fireKey) that is down.
-		this.input.keyboard.once('keydown-SPACE', () => this.restartLevel());
-		this.time.delayedCall(RESTART_DELAY, () => this.restartLevel());
+		const next = last ? { levelIndex: 0, score: 0 } : { levelIndex: nextLevelIndex(this.levelIndex), score: this.status.score };
+		this.input.keyboard.once('keydown-SPACE', () => this.goToLevel(next));
+		if (!last) {
+			this.time.delayedCall(RESTART_DELAY, () => this.goToLevel(next));
+		}
 	}
 
-	restartLevel() {
+	/** Restart the scene on the level in `data` (`{ levelIndex, score }`), once. */
+	goToLevel(data) {
 		if (this.restarting) {
 			return;
 		}
 		this.restarting = true;
-		this.scene.restart();
+		this.scene.restart(data);
 	}
 
 	steer(time) {

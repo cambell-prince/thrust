@@ -3,17 +3,26 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { LEVELS } from '../js/logic/levels.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const source = readFileSync(root + 'js/scenes/LevelScene.js', 'utf8');
 // this.load.image('key', 'file.png') etc., relative to load.setPath('assets/').
-const loads = [...source.matchAll(/this\.load\.\w+\('([^']+)',\s*'([^']+)'/g)].map((m) => ({ key: m[1], file: m[2] }));
+const literalLoads = [...source.matchAll(/this\.load\.\w+\('([^']+)',\s*'([^']+)'/g)].map((m) => ({ key: m[1], file: m[2] }));
+const loads = literalLoads;
 
 test('the level scene loads the core assets from assets/', () => {
 	assert.match(source, /this\.load\.setPath\('assets\/'\)/);
-	for (const key of ['ship', 'tiles-1', 'level1']) {
+	for (const key of ['ship', 'tiles-1']) {
 		assert.ok(loads.some((l) => l.key === key), `no load for '${key}'`);
 	}
+});
+
+test('every map in LEVELS exists under public/assets/ and the scene loads maps', () => {
+	assert.ok(LEVELS.length >= 2);
+	const missing = LEVELS.map((l) => l.file).filter((file) => !existsSync(root + 'public/assets/' + file));
+	assert.deepEqual(missing, []);
+	assert.match(source, /tilemapTiledJSON\(/);
 });
 
 test('every file the level scene loads exists under public/assets/', () => {

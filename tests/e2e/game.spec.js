@@ -3,13 +3,13 @@ import { expect, test } from '@playwright/test';
 // All game state is read through window.thrust (the Phaser.Game) in the page.
 
 /** Open the game and wait for the level scene to finish creating. */
-async function openGame(page) {
+async function openGame(page, search = '') {
 	const errors = [];
 	page.on('pageerror', (err) => errors.push(err.message));
 	page.on('console', (msg) => {
 		if (msg.type() === 'error') errors.push(msg.text());
 	});
-	await page.goto('./');
+	await page.goto('./' + search);
 	await page.waitForFunction(() => window.thrust?.scene.getScene('Level')?.scoreboard);
 	return errors;
 }
@@ -93,8 +93,15 @@ test('boots Phaser 4 and builds the level from the Tiled map', async ({ page }) 
 		hud: scene.scoreboard.scoreText.text,
 		mission: scene.scoreboard.missionText.text,
 		habitat: Boolean(scene.habitat),
+		// Depth: the ship is under the walls; enemies and everything else created later draw over them.
+		shipUnderWalls: scene.ship.depth < scene.walls.depth,
+		enemyOverWalls: scene.enemies.getChildren()[0].depth >= scene.walls.depth,
+		wallsBeforeEnemy: scene.children.getIndex(scene.walls) < scene.children.getIndex(scene.enemies.getChildren()[0]),
 	}));
 
+	expect(level.shipUnderWalls).toBe(true);
+	expect(level.enemyOverWalls).toBe(true);
+	expect(level.wallsBeforeEnemy).toBe(true);
 	expect(level.enemies).toEqual(['1', '2', '3']);
 	expect(level.collectables).toEqual(['dude-right', 'dude-right']);
 	expect(level.tuning).toEqual({ fuelExpense: 1, lifeExpense: 20, enemyShootTime: 2500 });
@@ -201,41 +208,75 @@ test('flying into a stranded dude takes them aboard, without points yet', async 
 	expect(await inScene(page, (scene) => scene.scoreboard.missionText.text)).toBe('0/2 +1');
 });
 
-test('landing beside the habitat with every dude aboard completes the level, and SPACE restarts it', async ({ page }) => {
+test('completing level 1 leads to level 2, keeping the score and refilling fuel and life', async ({ page }) => {
 	const errors = await openGame(page);
+	await inScene(page, (scene) => { scene.status.setFuel(40); scene.status.setLife(60); });
 	await rescueAll(page);
-	expect(await inScene(page, (scene) => scene.mission.aboard)).toBe(2);
 
 	// Hold fire through completion: the banner must not be skipped by a key already down.
 	await page.keyboard.down('Space');
 	await landBesideHabitat(page);
 	await expect.poll(() => inScene(page, (scene) => scene.levelComplete), { timeout: 15_000 }).toBe(true);
-	// A second down() while held is sent as an auto-repeat (event.repeat), as the OS does.
-	await page.keyboard.down('Space');
+	await page.keyboard.down('Space'); // an auto-repeat while held
 	await page.waitForTimeout(300);
 	await page.keyboard.up('Space');
-	expect(await inScene(page, (scene) => scene.levelComplete)).toBe(true);
 
 	const done = await inScene(page, (scene) => ({
-		score: scene.status.score,
-		mission: scene.scoreboard.missionText.text,
 		banner: scene.banner?.list.filter((o) => o.type === 'Text').map((t) => t.text),
+		levelIndex: scene.levelIndex,
 		enemyBullets: scene.enemyBullets.countActive(true),
 		shipBullets: scene.shipBullets.countActive(true),
 	}));
-	expect(done.shipBullets).toBe(0);
-	expect(done.score).toBe(1000);
-	expect(done.mission).toBe('2/2');
-	expect(done.banner).toEqual(['MISSION COMPLETE', 'SCORE 1000', 'PRESS SPACE']);
-	expect(done.enemyBullets).toBe(0);
+	expect(done).toEqual({
+		banner: ['MISSION COMPLETE', 'SCORE 1000', 'PRESS SPACE FOR LEVEL 2'],
+		levelIndex: 0, enemyBullets: 0, shipBullets: 0,
+	});
 
 	await page.keyboard.press('Space');
 	await page.waitForFunction(() => {
 		const scene = window.thrust.scene.getScene('Level');
-		return scene.scoreboard && !scene.levelComplete && scene.mission?.delivered === 0 && scene.status.score === 0;
+		return scene.levelIndex === 1 && scene.scoreboard && !scene.levelComplete;
 	}, null, { timeout: 5_000 });
 	await page.waitForTimeout(500);
-	expect(await inScene(page, (scene) => scene.scoreboard.missionText.text)).toBe('0/2');
+	const level2 = await inScene(page, (scene) => ({
+		score: scene.status.score, fuel: scene.status.fuel, life: scene.status.life,
+		mission: scene.scoreboard.missionText.text, aboard: scene.mission.aboard,
+		map: scene.map.height, walking: scene.walkingDudes, restarting: scene.restarting,
+	}));
+	expect(level2).toEqual({ score: 1000, fuel: 100, life: 100, mission: '0/3', aboard: 0, map: 96, walking: 0, restarting: false });
+	expect(errors).toEqual([]);
+});
+
+test('?level=2 boots level 2, and a bad ?level= boots level 1', async ({ page }) => {
+	await openGame(page, '?level=2');
+	expect(await inScene(page, (scene) => ({ level: scene.levelIndex, mission: scene.scoreboard.missionText.text, dudes: scene.collectables.getLength() })))
+		.toEqual({ level: 1, mission: '0/3', dudes: 3 });
+	expect(await inScene(page, (scene) => scene.scoreboard.missionLabel.text)).toBe('MISSION 2');
+	await openGame(page, '?level=abc');
+	expect(await inScene(page, (scene) => scene.scoreboard.missionLabel.text)).toBe('MISSION 1');
+	expect(await inScene(page, (scene) => scene.levelIndex)).toBe(0);
+});
+
+test('completing the last level shows ALL MISSIONS COMPLETE, waits, and SPACE starts a new game', async ({ page }) => {
+	const errors = await openGame(page, '?level=2');
+	await inScene(page, (scene) => scene.status.changeScore(1000));
+	await rescueAll(page);
+	await landBesideHabitat(page);
+	await expect.poll(() => inScene(page, (scene) => scene.levelComplete), { timeout: 20_000 }).toBe(true);
+	expect(await inScene(page, (scene) => scene.banner.list.filter((o) => o.type === 'Text').map((t) => t.text)))
+		.toEqual(['ALL MISSIONS COMPLETE', 'SCORE 2500', 'PRESS SPACE TO PLAY AGAIN']);
+
+	await page.waitForTimeout(6000);
+	expect(await inScene(page, (scene) => ({ level: scene.levelIndex, complete: scene.levelComplete }))).toEqual({ level: 1, complete: true });
+
+	await page.keyboard.press('Space');
+	await page.waitForFunction(() => {
+		const scene = window.thrust.scene.getScene('Level');
+		return scene.levelIndex === 0 && scene.scoreboard && !scene.levelComplete;
+	}, null, { timeout: 5_000 });
+	await page.waitForTimeout(300);
+	expect(await inScene(page, (scene) => ({ score: scene.status.score, mission: scene.scoreboard.missionText.text })))
+		.toEqual({ score: 0, mission: '0/2' });
 	expect(errors).toEqual([]);
 });
 

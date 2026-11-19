@@ -9,19 +9,20 @@ const GAUGES = {
 	fuel: { x: 236, y: 10, width: 140, height: 6, color: 0xff3300 },
 };
 
-/** The camera-fixed HUD: life and fuel gauges, the mission count (delivered/total, +aboard) and score. */
+/** The camera-fixed HUD: life and fuel gauges, the mission (level) number and count (delivered/total, +aboard) and score. */
 export class Scoreboard {
-	constructor(scene, status, mission) {
+	constructor(scene, status, mission, levelNumber) {
 		this.status = status;
 		this.mission = mission;
 		this.graphics = scene.add.graphics();
+		this.missionLabel = scene.add.text(390, 7, `MISSION ${levelNumber}`, TEXT_STYLE);
 		const labels = [
 			scene.add.text(10, 7, 'LIFE', TEXT_STYLE),
 			scene.add.text(200, 7, 'FUEL', TEXT_STYLE),
-			scene.add.text(390, 7, 'MISSION', TEXT_STYLE),
+			this.missionLabel,
 			scene.add.text(580, 7, 'SCORE', TEXT_STYLE),
 		];
-		this.missionText = scene.add.text(445, 7, '', TEXT_STYLE);
+		this.missionText = scene.add.text(460, 7, '', TEXT_STYLE);
 		this.scoreText = scene.add.text(630, 7, '0', TEXT_STYLE);
 		for (const item of [this.graphics, ...labels, this.missionText, this.scoreText]) {
 			item.setScrollFactor(0).setDepth(100);
