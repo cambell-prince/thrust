@@ -36,7 +36,7 @@ Layout:
 
 ## Architecture
 
-- `src/main.ts` creates the `Phaser.Game`: `Phaser.AUTO` (WebGL; Canvas is deprecated in v4), 800×600, Arcade physics with gravity y=40. It adds the one scene, `Level`, with `{ levelIndex }` from `?level=N` (1-based; missing or invalid means level 1). It also sets `window.thrust = game`, which the e2e tests (and console debugging) use to reach `game.scene.getScene('Level')`.
+- `src/main.ts` creates the `Phaser.Game`: `Phaser.AUTO` (WebGL; Canvas is deprecated in v4), 1200×900 (centred on a black page by `index.html`), Arcade physics with gravity y=40. It adds the one scene, `Level`, with `{ levelIndex }` from `?level=N` (1-based; missing or invalid means level 1). It also sets `window.thrust = game`, which the e2e tests (and console debugging) use to reach `game.scene.getScene('Level')`.
 - `src/scenes/LevelScene.ts` holds the whole game: loading, building the level, colliders, input and the rules. The scene takes `{ levelIndex, score }` in `init(data)` and plays `LEVELS[levelIndex]`, carrying `score` over (fuel and life start full). Game state lives on the scene (`levelIndex`, `ship`, `walls`, `map`, `enemies`, `shipBullets`, `enemyBullets`, `collectables`, `explosions`, `status`, `scoreboard`).
 - `src/logic/` is plain TypeScript with no Phaser import, so it can be unit-tested in Node:
   - `ShipStatus`: fuel, life and score, clamped to 0..100
