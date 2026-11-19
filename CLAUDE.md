@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A small 2D browser game in TypeScript (ES modules) on **Phaser 4.2** (the `phaser` npm package). Phaser 4 keeps the Phaser 3 scene API; v2-style code (`game.add.*`, `createMultiple`, `getRayCastTiles`) does not apply. It is inspired by C64 *Thrust* and Lunar Lander. Controls: left/right rotate, up thrusts, space fires. Live demo: http://demo.saygoweb.com/thrust
+A small 2D browser game in TypeScript (ES modules) on **Phaser 4.2** (the `phaser` npm package). Phaser 4 keeps the Phaser 3 scene API; v2-style code (`game.add.*`, `createMultiple`, `getRayCastTiles`) does not apply. It is inspired by C64 *Thrust* and Lunar Lander. Controls: left/right rotate, up thrusts, space fires, M mutes. Live demo: http://demo.saygoweb.com/thrust
 
 ## Running
 
@@ -25,6 +25,7 @@ Vite handles the dev server and build (Node >= 22.12). Vite only strips types an
   To run one file: `npx vitest run tests/unit/cooldown.test.ts`.
 - `npm run test:e2e` runs the Playwright tests (`tests/e2e/*.spec.ts`). They build the game, serve it with `vite preview` on port 4173 and play it in headless Chromium. To run one test: `npx playwright test -g "line of sight"`. Run `npx playwright install chromium` once first.
 - `npm run maps` exports the Tiled maps (`public/assets/*.tmx`) to the `.json` the game loads. See Levels below.
+- `npm run sfx` regenerates the sound effects (`public/assets/audio/*.wav`) from `scripts/make-sfx.js`.
 - `npm run deploy` builds and rsyncs `dist/` to the public demo server via `scripts/deploy.sh`. It is outward-facing, so don't run it unless asked. By default the script logs in as `root` and runs rsync as `vu2006`. `DEPLOY_USER`, `DEPLOY_HOST`, `DEPLOY_PATH`, `DEPLOY_SUDO_USER` and `DEPLOY_SSH` override that.
 - CI (`.github/workflows/ci.yml`) runs `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` and `npm run test:e2e` on every push and PR. A green push to `master` (or a manual run on master) then deploys the built `dist/` to aws1.saygoweb.com as `vu2006`. The `demo` GitHub environment holds the secrets `DEPLOY_KEY` and `DEPLOY_KNOWN_HOSTS` (the server's ED25519 host key). On the server, that key is limited in `~vu2006/.ssh/authorized_keys` to `restrict,command="/usr/bin/rrsync -wo /var/www/virtual/saygoweb.com/demo/htdocs/thrust"`. It can only rsync into that directory, and the deploy path is relative to it (`DEPLOY_PATH` defaults to `./`). The optional vars `DEPLOY_USER`, `DEPLOY_HOST` and `DEPLOY_PATH` override the defaults.
 
@@ -47,8 +48,10 @@ Layout:
   - `Mission` and `canUnload`: cargo, completion and landing at the habitat
   - `levels`: `LEVELS` (play order), progression (`isLastLevel`, `nextLevelIndex`), `levelIndexFromSearch` and `shipStartPosition`
   - `NON_SOLID_TILES` (in `tiled.ts`): the tiles-1 indices that are scenery, not wall
+  - `audio`: the sound tables `SOUNDS` and `MUSIC` (key, file, volume), `musicAction` (keep, start, switch or stop the music when a level starts), `musicKey` and `soundVolume`
   Put new rules there when they can be separated from Phaser.
-- `src/hud/Scoreboard.ts` draws the HUD from `ShipStatus` and `Mission` (`MISSION <level number>`, `delivered/total`, then ` +aboard`) with `setScrollFactor(0)`. Call `scoreboard.refresh()` after changing the status or the mission.
+- `src/hud/Scoreboard.ts` draws the HUD from `ShipStatus` and `Mission` (`MISSION <level number>`, `delivered/total`, then ` +aboard`) with `setScrollFactor(0)`. It shows `MUTED` while the sound is muted. Call `scoreboard.refresh()` after changing the status, the mission or the mute.
+- `src/audio/GameAudio.ts` (`scene.audio`) plays the sounds, one method per event (`shipShot()`, `enemyShot()`, `explosion()`, `pickup()`, `dropOff()`). `thrust(on)` runs the looping thrust sound while the ship thrusts; it belongs to the scene and is destroyed on shutdown. The sound manager belongs to the game, so music carries on across scene restarts: `playMusic()` keeps the track if the next level names the same one, or destroys it and starts the new one, so only one music sound ever exists. While the browser keeps audio locked (until the first key press) it waits for `UNLOCKED`. M toggles mute; the state is kept in the game registry (`MUTED`), because the WebAudio manager's `mute` getter lags behind its setter.
 - Picking up a dude scores nothing; it scores `SHIP_SCORE_RESCUE` when it walks into the habitat. Landing upright beside the habitat unloads the dudes aboard one at a time, and delivering every dude shows the mission-complete banner. SPACE (or 5 s) then restarts the scene on the next level with the score (`goToLevel()`). After the last level the banner reads ALL MISSIONS COMPLETE and waits for SPACE, which starts a new game on level 1 with a score of 0.
 - Colliders and overlaps are registered once in `addColliders()`, not every frame. Arcade calls back with a lone sprite first and a group member second, whatever order they are passed in, so the code passes the sprite first.
 - **An overlap against a tilemap layer tests every tile, empty ones included.** The bullet-vs-wall overlaps therefore take a process callback that returns `tile.collides`. Colliders filter tiles themselves.
@@ -57,15 +60,16 @@ Layout:
 
 ### Levels (Tiled)
 
-- There are two levels, `level1` and `level2`, listed in play order in `LEVELS` (`src/logic/levels.ts`). Each has a Tiled source `public/assets/levelN.tmx` and its export `levelN.json`, which the game loads. Both are committed, so edit the `.tmx` in Tiled, then run `npm run maps` to regenerate the `.json` (`scripts/export-maps.sh`: every `public/assets/*.tmx`, or the files given after `--`). It uses Tiled's CLI from `tiled` on PATH or the Flatpak `org.mapeditor.Tiled`, or `TILED` overrides it. Keep the two in sync. Current Tiled writes map properties as an array of `{ name, type, value }` (level2) where older exports wrote an object of strings (level1). `numberProperty()` reads both, and the level tests use it.
+- There are two levels, `level1` and `level2`, listed in play order in `LEVELS` (`src/logic/levels.ts`). Each has a Tiled source `public/assets/levelN.tmx` and its export `levelN.json`, which the game loads. Both are committed, so edit the `.tmx` in Tiled, then run `npm run maps` to regenerate the `.json` (`scripts/export-maps.sh`: every `public/assets/*.tmx`, or the files given after `--`). It uses Tiled's CLI from `tiled` on PATH or the Flatpak `org.mapeditor.Tiled`, or `TILED` overrides it. Keep the two in sync. Current Tiled writes map properties as an array of `{ name, type, value }` where older exports wrote an object of strings. `numberProperty()` and `stringProperty()` read both, and the level tests use them.
 - To add a level, add its `.tmx` and `.json` and a `LEVELS` entry. Every level needs the layers below, and `tests/level.test.ts` checks each one, including that the dudes and habitat can be reached from the start (`tests/helpers/reachability.ts`).
 - The ship starts beside the habitat (`shipStartPosition()`: left of it, or right when the left is near the map edge, and above it).
 - Layers (all required): `Walls` (a tile layer; collision is set with `setCollisionByExclusion(NON_SOLID_TILES)`, a list that must include `-1` for empty cells), `Enemy` (objects with gid 69 become `arrow` sprites) `Collectables` (objects with gid 71 become `dude` sprites) and `Habitat` (one rectangle object, no gid: the habitat image stands on its bottom edge, and the landing check measures against its sides). Objects are placed by hand with `spawnFromObjects()`, not `map.createFromObjects`, to keep Phaser 2's placement and avoid needing tileset images for the `enemies` and `collectables` tilesets.
-- Gameplay tuning comes from **map properties** (`fuelExpense`, `lifeExpense`, `enemyShootTime`), read once into `scene.tuning` with `numberProperty()`. That function accepts both Tiled's old object-of-strings format and its newer array format. Several hard-coded constants are marked `// TODO map.properties` and are meant to move there.
+- Gameplay tuning comes from **map properties** (`fuelExpense`, `lifeExpense`, `enemyShootTime`), read once into `scene.tuning` with `numberProperty()`. The `music` property names the level's track (a `MUSIC` key; missing or unknown means no music), read into `scene.tuning.music`. That function accepts both Tiled's old object-of-strings format and its newer array format. Several hard-coded constants are marked `// TODO map.properties` and are meant to move there.
 
 ### Assets
 
 - `public/assets/` holds the runtime assets. Sprite sheet frame sizes are declared in `preload()`, e.g. `ship.png` is 70×48 with 4 frames, margin 2 and spacing 2. Ship frames (`SHIP_FRAME`): 0 = right, 1 = left, 2 = thrust, 3 = idle. Animations (`dude-left`, `dude-turn`, `dude-right`, `kaboom`) are global and created in `createAnimations()`.
+- `public/assets/audio/` holds the sound effects (`.wav`, generated by `npm run sfx`) and the music tracks (`.mp3`). `CREDITS.md` there credits every track (CC0), and a test checks it. `preload()` loads everything in `SOUNDS` and `MUSIC`.
 - `art/` holds the source art (GIMP `.xcf`, per-frame PNGs and the TexturePacker project `ship`). It is not part of the build output.
 
 ## Conventions

@@ -115,7 +115,7 @@ test('boots Phaser 4 and builds the level from the Tiled map', async ({ page }) 
 	expect(level.wallsBeforeEnemy).toBe(true);
 	expect(level.enemies).toEqual(['1', '2', '3']);
 	expect(level.collectables).toEqual(['dude-right', 'dude-right']);
-	expect(level.tuning).toEqual({ fuelExpense: 1, lifeExpense: 20, enemyShootTime: 2500 });
+	expect(level.tuning).toEqual({ fuelExpense: 1, lifeExpense: 20, enemyShootTime: 2500, music: 'music-stargazer' });
 	expect(level.wallCollision).toBe(true);
 	expect(level.hud).toBe('0');
 	expect(level.mission).toBe('0/2');

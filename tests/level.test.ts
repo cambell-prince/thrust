@@ -3,7 +3,8 @@ import { describe, test as baseTest } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { numberProperty, type TiledProperties } from '../src/logic/mapProperties.ts';
+import { numberProperty, stringProperty, type TiledProperties } from '../src/logic/mapProperties.ts';
+import { musicKey } from '../src/logic/audio.ts';
 import { NON_SOLID_TILES } from '../src/logic/tiled.ts';
 import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../src/logic/levels.ts';
 import { HABITAT_RANGE } from '../src/logic/mission.ts';
@@ -81,6 +82,11 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		for (const prop of ['fuelExpense', 'lifeExpense', 'enemyShootTime']) {
 			assert.ok(Number.isFinite(property(prop)), `map property ${prop} is missing or not numeric`);
 		}
+	});
+
+	test('names a music track', () => {
+		const music = stringProperty(map.properties, 'music', '');
+		assert.ok(musicKey(music), `music property '${music}' is not a MUSIC key`);
 	});
 
 	test('the tiles-1 tileset image is shipped', () => {

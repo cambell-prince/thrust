@@ -13,7 +13,7 @@ const BLING_VOLUME = 0.6;
 const THRUST_VOLUME = 0.4;
 const MUSIC_VOLUME = 0.3;
 
-/** The sound effects, made by scripts/make-sfx.mjs. */
+/** The sound effects, made by scripts/make-sfx.js. */
 export const SOUNDS: readonly SoundDef[] = [
 	{ key: 'ship-shot', file: 'audio/ship-shot.wav', volume: SHOT_VOLUME },
 	{ key: 'enemy-shot', file: 'audio/enemy-shot.wav', volume: SHOT_VOLUME },
