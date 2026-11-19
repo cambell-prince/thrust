@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
+import { GameAudio } from '../audio/GameAudio.ts';
 import { Scoreboard } from '../hud/Scoreboard.ts';
+import { MUSIC, musicKey, SOUNDS } from '../logic/audio.ts';
 import { Cooldown } from '../logic/cooldown.ts';
 import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.ts';
-import { isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
-import { numberProperty, type TiledProperties } from '../logic/mapProperties.ts';
+import { ENEMY_SCALE, isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
+import { numberProperty, stringProperty, type TiledProperties } from '../logic/mapProperties.ts';
 import { canUnload, Mission } from '../logic/mission.ts';
 import { PATROL_SPEED, reversePatrol } from '../logic/patrol.ts';
 import { ShipStatus } from '../logic/shipStatus.ts';
@@ -26,6 +28,8 @@ export interface Tuning {
 	fuelExpense: number;
 	lifeExpense: number;
 	enemyShootTime: number;
+	/** The MUSIC key of the level's track, or null for none. */
+	music: string | null;
 }
 
 /** The Tiled `Habitat` rectangle. */
@@ -95,6 +99,7 @@ export class LevelScene extends Phaser.Scene {
 	walkingDudes = 0;
 	banner: Phaser.GameObjects.Container | undefined;
 	scoreboard!: Scoreboard;
+	audio!: GameAudio;
 	keyboard!: Phaser.Input.Keyboard.KeyboardPlugin;
 	cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 	fireKey!: Phaser.Input.Keyboard.Key;
@@ -121,6 +126,9 @@ export class LevelScene extends Phaser.Scene {
 		this.load.image('arrow', 'longarrow2.png');
 		this.load.image('tiles-1', 'tiles-1.png');
 		this.load.image('habitat', 'habitat.png');
+		for (const { key, file } of [...SOUNDS, ...MUSIC]) {
+			this.load.audio(key, file);
+		}
 		for (const { key, file } of LEVELS) {
 			this.load.tilemapTiledJSON(key, file);
 		}
@@ -164,6 +172,16 @@ export class LevelScene extends Phaser.Scene {
 		this.keyboard = this.input.keyboard;
 		this.cursors = this.keyboard.createCursorKeys();
 		this.fireKey = this.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+		this.audio = new GameAudio(this);
+		this.audio.playMusic(this.tuning.music);
+		this.keyboard.on('keydown-M', (event: KeyboardEvent) => {
+			if (event.repeat) {
+				return; // M held down: toggle once, not on every auto-repeat
+			}
+			this.audio.toggleMute();
+			this.scoreboard.refresh();
+		});
 
 		this.addColliders();
 	}
@@ -218,6 +236,7 @@ export class LevelScene extends Phaser.Scene {
 			fuelExpense: numberProperty(props, 'fuelExpense', 1),
 			lifeExpense: numberProperty(props, 'lifeExpense', 20),
 			enemyShootTime: numberProperty(props, 'enemyShootTime', 2500),
+			music: musicKey(stringProperty(props, 'music', '')),
 		};
 	}
 
@@ -260,7 +279,7 @@ export class LevelScene extends Phaser.Scene {
 	createEnemies(): Phaser.Physics.Arcade.Group {
 		const enemies = this.physics.add.group({ allowGravity: false, immovable: true });
 		for (const enemy of this.spawnFromObjects(enemies, 'Enemy', ENEMY_GID, 'arrow')) {
-			enemy.setOrigin(0.25, 0.5).setScale(0.5);
+			enemy.setOrigin(0.25, 0.5).setScale(ENEMY_SCALE);
 		}
 		return enemies;
 	}
@@ -296,8 +315,9 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	override update(time: number): void {
+		let thrusting = false;
 		if (this.ship.active && !this.levelComplete) {
-			this.steer(time);
+			thrusting = this.steer(time);
 			if (this.fireKey.isDown && this.shipFire.ready(time)) {
 				this.shipShoot(time);
 			}
@@ -309,6 +329,7 @@ export class LevelScene extends Phaser.Scene {
 				this.unloadTick.trigger(time);
 			}
 		}
+		this.audio.thrust(thrusting);
 		this.killStrayBullets(this.shipBullets);
 		this.killStrayBullets(this.enemyBullets);
 	}
@@ -346,6 +367,7 @@ export class LevelScene extends Phaser.Scene {
 			onComplete: () => {
 				dude.destroy();
 				this.status.changeScore(SHIP_SCORE_RESCUE);
+				this.audio.dropOff();
 				this.scoreboard.refresh();
 				if (this.ship.active && this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
 					this.completeLevel();
@@ -409,9 +431,11 @@ export class LevelScene extends Phaser.Scene {
 		this.scene.restart(data);
 	}
 
-	steer(time: number): void {
+	/** Turn and thrust from the cursor keys; returns whether the ship is thrusting. */
+	steer(time: number): boolean {
 		const { ship, cursors } = this;
 		let frame: number;
+		let thrusting = false;
 		if (cursors.left.isDown) {
 			ship.setAngularVelocity(-SHIP_TURN_SPEED);
 			frame = SHIP_FRAME.LEFT;
@@ -431,10 +455,12 @@ export class LevelScene extends Phaser.Scene {
 			}
 			this.physics.velocityFromRotation(ship.rotation, SHIP_THRUST, ship.body.acceleration);
 			frame = SHIP_FRAME.THRUST;
+			thrusting = true;
 		} else {
 			ship.setAcceleration(0);
 		}
 		ship.setFrame(frame);
+		return thrusting;
 	}
 
 	uprightIfLanded(): void {
@@ -476,6 +502,7 @@ export class LevelScene extends Phaser.Scene {
 		bullet.setRotation(ship.rotation);
 		this.physics.velocityFromRotation(ship.rotation, SHIP_BULLET_SPEED, bullet.body.velocity);
 		this.shipFire.trigger(time);
+		this.audio.shipShot();
 	}
 
 	enemyShoot(time: number): void {
@@ -493,13 +520,20 @@ export class LevelScene extends Phaser.Scene {
 		if (!this.hasLineOfSight(shooter, ship)) {
 			return;
 		}
-		const bullet = this.enemyBullets.get(shooter.body.x, shooter.body.y) as Sprite | null;
+		// The arrow's head is the gun's base, at the pivot; its tail is the barrel. The shot leaves the
+		// barrel's tip, measured along the line just checked, so it starts clear of walls and in the map.
+		const aim = Phaser.Math.Angle.BetweenPoints(shooter, ship);
+		const barrel = shooter.displayWidth * (1 - shooter.originX);
+		const muzzleX = shooter.x + Math.cos(aim) * barrel;
+		const muzzleY = shooter.y + Math.sin(aim) * barrel;
+		const bullet = this.enemyBullets.get(muzzleX, muzzleY) as Sprite | null;
 		if (!bullet) {
 			return;
 		}
-		bullet.enableBody(true, shooter.body.x, shooter.body.y, true, true);
+		bullet.enableBody(true, muzzleX, muzzleY, true, true);
 		this.physics.moveToObject(bullet, ship, ENEMY_BULLET_SPEED);
 		this.enemyFire.trigger(time, this.tuning.enemyShootTime);
+		this.audio.enemyShot();
 	}
 
 	/** True when no wall tile lies on the straight line between two points. */
@@ -528,6 +562,7 @@ export class LevelScene extends Phaser.Scene {
 			return;
 		}
 		boom.setActive(true).setVisible(true).play('kaboom');
+		this.audio.explosion();
 		boom.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.explosions.killAndHide(boom));
 	}
 
@@ -557,6 +592,7 @@ export class LevelScene extends Phaser.Scene {
 	rescue(dude: Sprite): void {
 		dude.disableBody(true, true);
 		this.mission.pickUp();
+		this.audio.pickup();
 		this.scoreboard.refresh();
 	}
 }

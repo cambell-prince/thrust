@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { isMuted } from '../logic/audio.ts';
 import type { Mission } from '../logic/mission.ts';
 import { MAX_GAUGE, type ShipStatus } from '../logic/shipStatus.ts';
 
@@ -19,7 +20,10 @@ const GAUGES = {
 	fuel: { x: 236, y: 10, width: 140, height: 6, color: 0xff3300 },
 } satisfies Record<string, Gauge>;
 
-/** The camera-fixed HUD: life and fuel gauges, the mission (level) number and count (delivered/total, +aboard) and score. */
+/**
+ * The camera-fixed HUD: life and fuel gauges, the mission (level) number and count (delivered/total, +aboard),
+ * the score, and MUTED while the sound is muted.
+ */
 export class Scoreboard {
 	status: ShipStatus;
 	mission: Mission;
@@ -27,10 +31,13 @@ export class Scoreboard {
 	missionLabel: Phaser.GameObjects.Text;
 	missionText: Phaser.GameObjects.Text;
 	scoreText: Phaser.GameObjects.Text;
+	mutedText: Phaser.GameObjects.Text;
+	registry: Phaser.Data.DataManager;
 
 	constructor(scene: Phaser.Scene, status: ShipStatus, mission: Mission, levelNumber: number) {
 		this.status = status;
 		this.mission = mission;
+		this.registry = scene.registry;
 		this.graphics = scene.add.graphics();
 		this.missionLabel = scene.add.text(390, 7, `MISSION ${levelNumber}`, TEXT_STYLE);
 		const labels = [
@@ -41,13 +48,14 @@ export class Scoreboard {
 		];
 		this.missionText = scene.add.text(460, 7, '', TEXT_STYLE);
 		this.scoreText = scene.add.text(630, 7, '0', TEXT_STYLE);
-		for (const item of [this.graphics, ...labels, this.missionText, this.scoreText]) {
+		this.mutedText = scene.add.text(730, 7, 'MUTED', TEXT_STYLE);
+		for (const item of [this.graphics, ...labels, this.missionText, this.scoreText, this.mutedText]) {
 			item.setScrollFactor(0).setDepth(100);
 		}
 		this.refresh();
 	}
 
-	/** Redraw from the current status and mission. Call after changing fuel, life, score or cargo. */
+	/** Redraw from the current status and mission. Call after changing fuel, life, score, cargo or mute. */
 	refresh(): void {
 		this.graphics.clear();
 		this.drawGauge(GAUGES.life, this.status.life);
@@ -55,6 +63,7 @@ export class Scoreboard {
 		const { delivered, total, aboard } = this.mission;
 		this.missionText.setText(`${delivered}/${total}` + (aboard > 0 ? ` +${aboard}` : ''));
 		this.scoreText.setText(String(this.status.score));
+		this.mutedText.setVisible(isMuted(this.registry));
 	}
 
 	drawGauge({ x, y, width, height, color }: Gauge, amount: number): void {

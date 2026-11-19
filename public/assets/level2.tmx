@@ -4,6 +4,7 @@
   <property name="enemyShootTime" value="1800"/>
   <property name="fuelExpense" value="1"/>
   <property name="lifeExpense" value="25"/>
+  <property name="music" value="music-spaceshooter"/>
  </properties>
  <tileset firstgid="1" name="tiles-1" tilewidth="16" tileheight="16" tilecount="68" columns="17">
   <image source="tiles-1.png" width="272" height="64"/>
@@ -115,7 +116,7 @@
 </data>
  </layer>
  <objectgroup id="2" name="Enemy">
-  <object id="1" name="1" type="E" gid="69" x="584" y="392" width="32" height="32"/>
+  <object id="1" name="1" type="E" gid="69" x="600" y="392" width="32" height="32"/>
   <object id="2" name="2" type="E" gid="69" x="472" y="584" width="32" height="32"/>
   <object id="3" name="3" type="E" gid="69" x="120" y="760" width="32" height="32"/>
   <object id="4" name="4" type="E" gid="69" x="600" y="936" width="32" height="32"/>

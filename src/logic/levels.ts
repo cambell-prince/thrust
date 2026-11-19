@@ -23,6 +23,10 @@ export const SHIP_START_MARGIN = 40;
 /** The ship's body spans this far (px) left and right of the start x (the 46 px body at offset 27 of the 70 px sprite, origin 0.7). */
 export const SHIP_BODY_LEFT = 22;
 export const SHIP_BODY_RIGHT = 24;
+/** Enemies (the 72x32 arrow) are drawn at this scale; they turn about a pivot that must be half their width from rock. */
+export const ENEMY_SCALE = 0.5;
+/** The arrow texture's height (px), which objectSpawnPosition() lifts an enemy by. */
+export const ENEMY_TEXTURE_HEIGHT = 32;
 
 export function isLastLevel(index: number): boolean {
 	return index >= LEVELS.length - 1;
