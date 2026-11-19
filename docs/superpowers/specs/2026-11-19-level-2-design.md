@@ -113,8 +113,8 @@ level number as a fourth constructor argument.
   - the required layers and gids, and numeric tuning properties
   - the Walls data size, and a habitat on solid ground in open space
   - at least one collectable
-  - **reachability:** a flood fill over tiles where a 3 × 3 tile box is free of solid
-    tiles, starting from the box containing the ship start (`shipStartPosition`),
+  - **reachability:** a flood fill over tiles where a 4 × 4 tile box (the 64 px "Playable" width) is free of solid
+    tiles (3 × 3 for level1, which keeps its existing 3-tile gaps), starting from the box containing the ship start (`shipStartPosition`),
     reaches a landing box for the habitat and a box overlapping every collectable. A
     landing box for the habitat is one whose bottom row sits on the habitat's ground
     row (directly above it) and whose centre is within `HABITAT_RANGE` of the habitat
