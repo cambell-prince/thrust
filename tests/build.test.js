@@ -34,7 +34,7 @@ test('the game and Phaser 4 are bundled into bundle/', () => {
 });
 
 test('public/ is copied as-is', () => {
-	for (const p of ['assets/level1.json', 'assets/ship.png']) {
+	for (const p of ['assets/level1.json', 'assets/level2.json', 'assets/ship.png']) {
 		assert.ok(existsSync(join(outDir, p)), `dist is missing ${p}`);
 	}
 });
