@@ -175,7 +175,10 @@ export class LevelScene extends Phaser.Scene {
 
 		this.audio = new GameAudio(this);
 		this.audio.playMusic(this.tuning.music);
-		this.keyboard.on('keydown-M', () => {
+		this.keyboard.on('keydown-M', (event: KeyboardEvent) => {
+			if (event.repeat) {
+				return; // M held down: toggle once, not on every auto-repeat
+			}
 			this.audio.toggleMute();
 			this.scoreboard.refresh();
 		});

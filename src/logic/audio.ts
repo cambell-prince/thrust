@@ -29,6 +29,18 @@ export const MUSIC: readonly SoundDef[] = [
 	{ key: 'music-spaceshooter', file: 'audio/music-spaceshooter.mp3', volume: MUSIC_VOLUME, loop: true },
 ];
 
+/**
+ * The game registry key that holds whether the sound is muted. Phaser's WebAudio manager reads
+ * its `mute` from a gain node that only updates once the audio thread has run, so it is stale
+ * right after it is set; the registry, like the sound manager, lasts across scene restarts.
+ */
+export const MUTED_KEY = 'muted';
+
+/** Whether the registry (anything with `get`, such as Phaser's game registry) says the sound is muted. */
+export function isMuted(registry: { get(key: string): unknown }): boolean {
+	return registry.get(MUTED_KEY) === true;
+}
+
 export type MusicAction = 'keep' | 'start' | 'switch' | 'stop' | 'none';
 
 /** What to do with the music when a level starts, given the track playing and the one the level wants. */

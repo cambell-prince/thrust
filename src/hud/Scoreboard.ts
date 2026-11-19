@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { MUTED } from '../audio/GameAudio.ts';
+import { isMuted } from '../logic/audio.ts';
 import type { Mission } from '../logic/mission.ts';
 import { MAX_GAUGE, type ShipStatus } from '../logic/shipStatus.ts';
 
@@ -63,7 +63,7 @@ export class Scoreboard {
 		const { delivered, total, aboard } = this.mission;
 		this.missionText.setText(`${delivered}/${total}` + (aboard > 0 ? ` +${aboard}` : ''));
 		this.scoreText.setText(String(this.status.score));
-		this.mutedText.setVisible(this.registry.get(MUTED) === true);
+		this.mutedText.setVisible(isMuted(this.registry));
 	}
 
 	drawGauge({ x, y, width, height, color }: Gauge, amount: number): void {

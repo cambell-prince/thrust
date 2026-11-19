@@ -66,20 +66,20 @@ test.describe('audio', () => {
 		await openGame(page);
 		await page.keyboard.down('ArrowUp');
 		await frames(page, 5);
-		expect(await inScene(page, (scene) => scene.audio.thrustLoop.isPlaying)).toBe(true);
+		expect(await inScene(page, (scene) => scene.audio.thrustLoop?.isPlaying)).toBe(true);
 		await page.keyboard.up('ArrowUp');
 		await frames(page, 5);
-		expect(await inScene(page, (scene) => scene.audio.thrustLoop.isPlaying)).toBe(false);
+		expect(await inScene(page, (scene) => scene.audio.thrustLoop?.isPlaying)).toBe(false);
 	});
 
 	test('thrust stops when the level completes', async ({ page }) => {
 		await openGame(page);
 		await page.keyboard.down('ArrowUp');
 		await frames(page, 5);
-		expect(await inScene(page, (scene) => scene.audio.thrustLoop.isPlaying)).toBe(true);
+		expect(await inScene(page, (scene) => scene.audio.thrustLoop?.isPlaying)).toBe(true);
 		await inScene(page, (scene) => scene.completeLevel());
 		await frames(page, 3);
-		expect(await inScene(page, (scene) => scene.audio.thrustLoop.isPlaying)).toBe(false);
+		expect(await inScene(page, (scene) => scene.audio.thrustLoop?.isPlaying)).toBe(false);
 		await page.keyboard.up('ArrowUp');
 	});
 
@@ -131,6 +131,52 @@ test.describe('audio', () => {
 		await expectMuted(page, true);
 		await page.keyboard.press('KeyM');
 		await expectMuted(page, false);
+	});
+
+	test('holding M toggles mute once, not on every auto-repeat', async ({ page }) => {
+		await openGame(page);
+		await page.keyboard.down('KeyM');
+		// Downs while held are sent with repeat: true. An even count, so toggling on each would end unmuted.
+		await page.keyboard.down('KeyM');
+		await page.keyboard.down('KeyM');
+		await page.keyboard.down('KeyM');
+		await page.keyboard.up('KeyM');
+		await expectMuted(page, true);
+	});
+
+	test('effects are skipped while audio is locked, and played once it unlocks', async ({ page }) => {
+		await openGame(page);
+		const playEffects = () => inScene(page, (scene) => {
+			const sound = scene.sound as unknown as { play: (key: string, extra?: unknown) => boolean };
+			const play = sound.play.bind(sound);
+			const played: string[] = [];
+			sound.play = (key, extra) => { played.push(key); return play(key, extra); };
+			scene.audio.explosion();
+			scene.audio.enemyShot();
+			sound.play = play;
+			return played;
+		});
+		expect(await inScene(page, (scene) => scene.sound.locked)).toBe(true);
+		expect(await playEffects()).toEqual([]);
+		await page.keyboard.press('ArrowLeft');
+		await page.waitForFunction(() => window.thrust.scene.getScene<LevelScene>('Level').audio.audible);
+		expect(await playEffects()).toEqual(['explosion', 'enemy-shot']);
+	});
+
+	test('missing audio leaves the game silent, not broken', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+		await page.route(/\/audio\/(thrust|explosion|music-stargazer)\.(wav|mp3)$/, (route) => route.abort());
+		await openGame(page); // waits for create() to finish
+		expect(await inScene(page, (scene) => scene.audio.thrustLoop === undefined)).toBe(true);
+		await page.keyboard.down('ArrowUp'); // also unlocks audio
+		await frames(page, 5);
+		await page.keyboard.up('ArrowUp');
+		await inScene(page, (scene) => scene.audio.explosion());
+		await frames(page, 3);
+		const music = await page.evaluate(() => window.thrust.sound.getAll('music-stargazer').length);
+		expect(music).toBe(0);
+		expect(pageErrors).toEqual([]);
 	});
 
 	test('mute lasts into the next level', async ({ page }) => {
