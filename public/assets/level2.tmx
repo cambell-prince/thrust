@@ -4,6 +4,7 @@
   <property name="enemyShootTime" value="1800"/>
   <property name="fuelExpense" value="1"/>
   <property name="lifeExpense" value="25"/>
+  <property name="music" value="music-spaceshooter"/>
  </properties>
  <tileset firstgid="1" name="tiles-1" tilewidth="16" tileheight="16" tilecount="68" columns="17">
   <image source="tiles-1.png" width="272" height="64"/>
