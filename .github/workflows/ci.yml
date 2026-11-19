@@ -70,10 +70,12 @@ jobs:
       cancel-in-progress: false
     env:
       # The domain user on aws1 logs in directly, so no sudo on the server.
-      # Its home is /var/www/virtual/saygoweb.com/, so the path is relative to that.
+      # DEPLOY_KEY is pinned in that user's authorized_keys to
+      #   restrict,command="/usr/bin/rrsync -wo /var/www/virtual/saygoweb.com/demo/htdocs/thrust"
+      # so it can only rsync into that directory, and paths are relative to it.
       DEPLOY_USER: ${{ vars.DEPLOY_USER || 'vu2006' }}
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST || 'aws1.saygoweb.com' }}
-      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || './demo/htdocs/thrust/' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || './' }}
       DEPLOY_SUDO_USER: ''
     steps:
       # For scripts/deploy.sh only; what ships is the tested build below.

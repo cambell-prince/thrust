@@ -4,6 +4,7 @@
 # The defaults are the manual deploy: as root, switching to the domain user on
 # the server. CI (.github/workflows/ci.yml) logs in as the domain user directly,
 # so it sets DEPLOY_USER, DEPLOY_HOST and DEPLOY_PATH and an empty DEPLOY_SUDO_USER.
+# Its key is limited by rrsync to the demo directory, so its DEPLOY_PATH is ./
 #   DEPLOY_USER       ssh login                    (default root)
 #   DEPLOY_HOST       server                       (default saygoweb.com)
 #   DEPLOY_PATH       target dir, trailing slash   (default /var/www/virtual/saygoweb.com/demo/htdocs/thrust/)
