@@ -12,6 +12,16 @@ This is a 2D game with a bit of a nod to the Commodore 64 game 'Thrust' which I 
 
 Avoid the enemy bullets, rescue your companions and return them to the base.  Don't run out of fuel, and don't sustain too much damage.
 
+## Development
+
+Requires Node 22.12+.
+
+```
+npm install
+npm run dev      # dev server with live reload
+npm run build    # production build in dist/
+```
+
 ## Status
 
 Currently this is just my experiment with the [Phaser](http://phaser.org) HTML5 game framework.
