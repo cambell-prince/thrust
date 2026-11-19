@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Cooldown } from '../../js/logic/cooldown.ts';
+import { Cooldown } from '../../src/logic/cooldown.ts';
 
 describe('Cooldown', () => {
 	it('is ready before it has ever triggered', () => {

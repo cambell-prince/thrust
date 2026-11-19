@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 // Types only: the functions below run in the page, where the game is window.thrust.
 import type Phaser from 'phaser';
-import type { LevelScene } from '../../js/scenes/LevelScene.ts';
+import type { LevelScene } from '../../src/scenes/LevelScene.ts';
 
 type Sprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 type Spot = { x: number; y: number };

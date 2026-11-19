@@ -3,9 +3,9 @@ import { describe, test as baseTest } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { NON_SOLID_TILES } from '../js/logic/tiled.ts';
-import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../js/logic/levels.ts';
-import { HABITAT_RANGE } from '../js/logic/mission.ts';
+import { NON_SOLID_TILES } from '../src/logic/tiled.ts';
+import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../src/logic/levels.ts';
+import { HABITAT_RANGE } from '../src/logic/mission.ts';
 import { reachableBoxes } from './helpers/reachability.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));

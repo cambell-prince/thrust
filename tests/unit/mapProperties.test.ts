@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { numberProperty } from '../../js/logic/mapProperties.ts';
+import { numberProperty } from '../../src/logic/mapProperties.ts';
 
 describe('numberProperty', () => {
 	it('parses string values from the legacy Tiled object format', () => {
