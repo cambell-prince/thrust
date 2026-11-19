@@ -88,6 +88,12 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		assert.ok(existsSync(root + 'public/assets/' + tiles.image));
 	});
 
+	// The game only loads tiles-1, but Tiled needs every tileset's image to show the map.
+	test('every tileset image exists, so the map opens in Tiled', () => {
+		const missing = map.tilesets.map((t) => t.image).filter((image) => !existsSync(root + 'public/assets/' + image));
+		assert.deepEqual(missing, []);
+	});
+
 	test('has a Habitat object layer with one rectangle', () => {
 		const habitat = layer('Habitat');
 		assert.equal(habitat?.type, 'objectgroup');

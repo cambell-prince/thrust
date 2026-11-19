@@ -12,7 +12,7 @@
   <image source="longarrow2.png" width="72" height="32"/>
  </tileset>
  <tileset firstgid="71" name="collectables" tilewidth="48" tileheight="48">
-  <image source="collectables.png" width="288" height="48"/>
+  <image source="dude.png" width="288" height="48"/>
  </tileset>
  <layer name="Walls" width="64" height="96">
   <data encoding="csv">
