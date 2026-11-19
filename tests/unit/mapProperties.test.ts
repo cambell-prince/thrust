@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { numberProperty } from '../../src/logic/mapProperties.ts';
+import { describe, expect, it, test } from 'vitest';
+import assert from 'node:assert/strict';
+import { numberProperty, stringProperty } from '../../src/logic/mapProperties.ts';
 
 describe('numberProperty', () => {
 	it('parses string values from the legacy Tiled object format', () => {
@@ -16,5 +17,20 @@ describe('numberProperty', () => {
 		expect(numberProperty({ fuelExpense: '' }, 'fuelExpense', 1)).toBe(1);
 		expect(numberProperty({ fuelExpense: 'lots' }, 'fuelExpense', 1)).toBe(1);
 		expect(numberProperty(undefined, 'fuelExpense', 1)).toBe(1);
+	});
+});
+
+describe('stringProperty', () => {
+	test('reads the newer array format', () => {
+		assert.equal(stringProperty([{ name: 'music', type: 'string', value: 'music-stargazer' }], 'music', ''), 'music-stargazer');
+	});
+	test('reads the old object-of-strings format', () => {
+		assert.equal(stringProperty({ music: 'music-spaceshooter' }, 'music', ''), 'music-spaceshooter');
+	});
+	test('falls back when missing, empty or not a string', () => {
+		assert.equal(stringProperty([], 'music', 'none'), 'none');
+		assert.equal(stringProperty({ music: '' }, 'music', 'none'), 'none');
+		assert.equal(stringProperty({ music: 3 }, 'music', 'none'), 'none');
+		assert.equal(stringProperty(undefined, 'music', 'none'), 'none');
 	});
 });
