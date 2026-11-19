@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canUnload, HABITAT_RANGE, LANDED_SPEED, Mission, UPRIGHT_TOLERANCE } from '../../js/logic/mission.js';
+import { canUnload, FLOOR_TOLERANCE, HABITAT_RANGE, LANDED_SPEED, Mission, UPRIGHT_TOLERANCE } from '../../js/logic/mission.js';
 
 describe('Mission', () => {
 	it('starts with nothing aboard or delivered', () => {
@@ -42,14 +42,23 @@ describe('Mission', () => {
 		expect(mission.isComplete).toBe(false);
 	});
 
+	it('stays complete when more are delivered than the total', () => {
+		const mission = new Mission(1);
+		mission.pickUp();
+		mission.pickUp();
+		mission.unloadOne();
+		mission.unloadOne();
+		expect(mission.isComplete).toBe(true);
+	});
+
 	it('is never complete for a level with no dudes', () => {
 		expect(new Mission(0).isComplete).toBe(false);
 	});
 });
 
 describe('canUnload', () => {
-	const habitat = { x: 128, width: 48 };
-	const landed = { onFloor: true, angle: -90, speed: 0, shipX: 100, habitat };
+	const habitat = { x: 128, width: 48, floorY: 336 };
+	const landed = { onFloor: true, angle: -90, speed: 0, shipX: 100, shipBottom: 336, habitat };
 
 	it('allows a ship landed upright and still beside the habitat', () => {
 		expect(canUnload(landed)).toBe(true);
@@ -79,5 +88,14 @@ describe('canUnload', () => {
 		expect(canUnload({ ...landed, shipX: habitat.x - HABITAT_RANGE })).toBe(true);
 		expect(canUnload({ ...landed, shipX: habitat.x + habitat.width + HABITAT_RANGE })).toBe(true);
 		expect(canUnload({ ...landed, shipX: habitat.x + 10 })).toBe(true);
+	});
+
+	it('refuses a ship landed on a different floor below or above', () => {
+		expect(canUnload({ ...landed, shipBottom: 640 })).toBe(false);
+		expect(canUnload({ ...landed, shipBottom: 100 })).toBe(false);
+		expect(canUnload({ ...landed, shipBottom: 336 + FLOOR_TOLERANCE })).toBe(true);
+		expect(canUnload({ ...landed, shipBottom: 336 - FLOOR_TOLERANCE })).toBe(true);
+		expect(canUnload({ ...landed, shipBottom: 336 + FLOOR_TOLERANCE + 1 })).toBe(false);
+		expect(canUnload({ ...landed, shipBottom: 336 - FLOOR_TOLERANCE - 1 })).toBe(false);
 	});
 });

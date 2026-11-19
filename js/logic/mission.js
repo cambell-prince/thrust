@@ -6,6 +6,8 @@ export const HABITAT_RANGE = 64;
 export const LANDED_SPEED = 5;
 /** How far (degrees) from upright a landed ship may lean and still unload. */
 export const UPRIGHT_TOLERANCE = 5;
+/** How far (px) the ship's bottom may be from the habitat's floor and still count as on that floor. */
+export const FLOOR_TOLERANCE = 8;
 
 /** The rescue mission: how many dudes the level holds, how many are aboard and how many are home. */
 export class Mission {
@@ -34,17 +36,21 @@ export class Mission {
 	}
 
 	get isComplete() {
-		return this.total > 0 && this.delivered === this.total;
+		return this.total > 0 && this.delivered >= this.total;
 	}
 }
 
 /**
  * Whether a ship can unload at the habitat: on the floor, upright, nearly still,
- * and within HABITAT_RANGE of the habitat's left or right edge.
- * `habitat` is the habitat rectangle's left edge `x` and `width`.
+ * within HABITAT_RANGE of the habitat's left or right edge, and standing on the habitat's
+ * floor (the ship's bottom within FLOOR_TOLERANCE of it), not some other floor of the cave.
+ * `habitat` is `{ x, width, floorY }`: the habitat rectangle's left edge, width and floor height.
  */
-export function canUnload({ onFloor, angle, speed, shipX, habitat }) {
+export function canUnload({ onFloor, angle, speed, shipX, shipBottom, habitat }) {
 	if (!onFloor || speed > LANDED_SPEED) {
+		return false;
+	}
+	if (Math.abs(shipBottom - habitat.floorY) > FLOOR_TOLERANCE) {
 		return false;
 	}
 	if (Math.abs(angle - UPRIGHT_ANGLE) > UPRIGHT_TOLERANCE) {

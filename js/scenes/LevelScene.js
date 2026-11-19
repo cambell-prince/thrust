@@ -23,6 +23,8 @@ const SHIP_SCORE_ENEMY = 100; // TODO map.properties
 const SHIP_SCORE_RESCUE = 500;
 
 const UNLOAD_INTERVAL = 600; // ms between dudes leaving the ship
+const BACKGROUND_DEPTH = -2;
+const HABITAT_DEPTH = -1; // above the background, below the ship and walls
 const UNLOAD_WALK_SPEED = PATROL_SPEED * 2; // px/s, walking to the habitat door
 const RESTART_DELAY = 5000; // ms the mission-complete banner shows before restarting
 const BANNER_DEPTH = 200; // above the HUD (100)
@@ -54,7 +56,9 @@ export class LevelScene extends Phaser.Scene {
 
 		this.createAnimations();
 
-		this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background').setOrigin(0).setScrollFactor(0);
+		// Depths: background (BACKGROUND_DEPTH) < habitat (HABITAT_DEPTH) < ship and walls (0, in creation order).
+		this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background').setOrigin(0).setScrollFactor(0)
+			.setDepth(BACKGROUND_DEPTH);
 
 		// The ship is created before the walls so that the walls draw over it.
 		this.createShip();
@@ -123,10 +127,15 @@ export class LevelScene extends Phaser.Scene {
 
 	/** The habitat image, standing on the bottom edge of the Tiled `Habitat` rectangle. */
 	createHabitat() {
-		const [box] = this.map.getObjectLayer('Habitat').objects;
+		this.habitat = null;
+		this.habitatZone = null;
+		const [box] = this.map.getObjectLayer('Habitat')?.objects ?? [];
+		if (!box) {
+			return;
+		}
 		const doorX = box.x + box.width / 2;
 		const floorY = box.y + box.height;
-		this.habitat = this.add.image(doorX, floorY, 'habitat').setOrigin(0.5, 1);
+		this.habitat = this.add.image(doorX, floorY, 'habitat').setOrigin(0.5, 1).setDepth(HABITAT_DEPTH);
 		this.habitatZone = { x: box.x, width: box.width, doorX, floorY };
 	}
 
@@ -203,12 +212,16 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	landedAtHabitat() {
+		if (!this.habitatZone) {
+			return false;
+		}
 		const { body } = this.ship;
 		return canUnload({
 			onFloor: body.onFloor(),
 			angle: this.ship.angle,
 			speed: body.speed,
 			shipX: body.center.x,
+			shipBottom: body.bottom,
 			habitat: this.habitatZone,
 		});
 	}
@@ -229,7 +242,7 @@ export class LevelScene extends Phaser.Scene {
 				dude.destroy();
 				this.status.changeScore(SHIP_SCORE_RESCUE);
 				this.scoreboard.refresh();
-				if (this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
+				if (this.ship.active && this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
 					this.completeLevel();
 				}
 			},
@@ -252,7 +265,7 @@ export class LevelScene extends Phaser.Scene {
 		ship.setVelocity(0, 0).setAcceleration(0).setAngularVelocity(0);
 		ship.body.setAllowGravity(false);
 		ship.setFrame(SHIP_FRAME.IDLE);
-		for (const bullet of this.enemyBullets.getMatching('active', true)) {
+		for (const bullet of [...this.enemyBullets.getMatching('active', true), ...this.shipBullets.getMatching('active', true)]) {
 			bullet.disableBody(true, true);
 		}
 

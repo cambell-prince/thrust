@@ -31,7 +31,7 @@ d.rectangle([3, 28, 44, 47], fill=HULL, outline=OUTLINE)
 d.rectangle([4, 41, 43, 46], fill=HULL_SHADE)
 # Windows
 for x in (8, 34):
-    d.rectangle([x, 32, x + 5, 36], fill=LIGHT, outline=OUTLINE)
+	d.rectangle([x, 32, x + 5, 36], fill=LIGHT, outline=OUTLINE)
 # Door, bottom centre (x 20..27, bottom 14 px)
 d.rectangle([20, 34, 27, 47], fill=DOOR, outline=OUTLINE)
 

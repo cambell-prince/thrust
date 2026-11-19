@@ -63,6 +63,20 @@ async function landBesideHabitat(page) {
 	}, null, { timeout: 10_000 });
 }
 
+/** Drop the ship upright on the cave floor at row 40 (top y=640), under the habitat's x-range, and let it settle. */
+async function landOnLowerFloor(page) {
+	await inScene(page, (scene) => {
+		scene.shipTween.stop();
+		scene.ship.setAngle(-90);
+		const { x } = scene.habitatZone;
+		scene.ship.body.reset(x - 40, 560);
+	});
+	await page.waitForFunction(() => {
+		const { ship } = window.thrust.scene.getScene('Level');
+		return ship.body.onFloor() && ship.body.speed < 5;
+	}, null, { timeout: 10_000 });
+}
+
 /** Take every dude on board without flying to them. */
 function rescueAll(page) {
 	return inScene(page, (scene) => scene.collectables.getMatching('active', true).forEach((dude) => scene.rescue(dude)));
@@ -207,7 +221,9 @@ test('landing beside the habitat with every dude aboard completes the level, and
 		mission: scene.scoreboard.missionText.text,
 		banner: scene.banner?.list.filter((o) => o.type === 'Text').map((t) => t.text),
 		enemyBullets: scene.enemyBullets.countActive(true),
+		shipBullets: scene.shipBullets.countActive(true),
 	}));
+	expect(done.shipBullets).toBe(0);
 	expect(done.score).toBe(1000);
 	expect(done.mission).toBe('2/2');
 	expect(done.banner).toEqual(['MISSION COMPLETE', 'SCORE 1000', 'PRESS SPACE']);
@@ -232,6 +248,39 @@ test('delivering only some dudes scores them but does not complete the level', a
 	await page.waitForTimeout(500);
 	expect(await inScene(page, (scene) => ({ complete: scene.levelComplete, mission: scene.scoreboard.missionText.text })))
 		.toEqual({ complete: false, mission: '1/2' });
+});
+
+test('landing on a lower floor below the habitat does not unload', async ({ page }) => {
+	await openGame(page);
+	await rescueAll(page);
+	await landOnLowerFloor(page);
+	await page.waitForTimeout(1500);
+	const state = await inScene(page, (scene) => ({
+		bottom: scene.ship.body.bottom,
+		floorY: scene.habitatZone.floorY,
+		aboard: scene.mission.aboard,
+		delivered: scene.mission.delivered,
+	}));
+	expect(state.bottom).toBeGreaterThan(state.floorY + 100);
+	expect(state).toMatchObject({ aboard: 2, delivered: 0 });
+});
+
+test('a ship destroyed while the last dude walks in does not complete the level', async ({ page }) => {
+	await openGame(page);
+	await rescueAll(page);
+	await landBesideHabitat(page);
+	await expect.poll(() => inScene(page, (scene) => scene.mission.aboard), { timeout: 10_000 }).toBe(0);
+	await inScene(page, (scene) => {
+		scene.status.setLife(0);
+		scene.ship.disableBody(true, true);
+	});
+	await page.waitForTimeout(2000);
+	const state = await inScene(page, (scene) => ({
+		complete: scene.levelComplete,
+		banner: scene.banner === undefined,
+		score: scene.status.score,
+	}));
+	expect(state).toEqual({ complete: false, banner: true, score: 1000 });
 });
 
 test('taking off mid-unload keeps the remaining dudes aboard', async ({ page }) => {

@@ -42,7 +42,7 @@ test('the tiles-1 tileset image is shipped', () => {
 });
 
 const wallGid = (row, col) => layer('Walls').data[row * layer('Walls').width + col];
-const solid = (gid) => gid !== 0 && !NON_SOLID_TILES.includes(gid);
+const solid = (gid) => Number.isInteger(gid) && gid > 0 && !NON_SOLID_TILES.includes(gid);
 
 test('has a Habitat object layer with one rectangle', () => {
 	const habitat = layer('Habitat');
@@ -60,9 +60,12 @@ test('the habitat stands on solid ground, in open space', () => {
 	const lastCol = Math.floor((box.x + box.width - 1) / tilewidth);
 	const groundRow = (box.y + box.height) / tileheight;
 	assert.ok(Number.isInteger(groundRow), 'the habitat bottom is not on a tile boundary');
+	const walls = layer('Walls');
+	assert.ok(groundRow < walls.height, 'the habitat ground row is outside the map');
+	assert.ok(firstCol >= 0 && lastCol < walls.width, 'the habitat columns are outside the map');
 	for (let col = firstCol; col <= lastCol; col++) {
 		assert.ok(solid(wallGid(groundRow, col)), `no solid ground under the habitat at column ${col}`);
-		for (let row = box.y / tileheight; row < groundRow; row++) {
+		for (let row = Math.floor(box.y / tileheight); row < groundRow; row++) {
 			assert.ok(!solid(wallGid(row, col)), `wall inside the habitat at row ${row}, column ${col}`);
 		}
 	}
