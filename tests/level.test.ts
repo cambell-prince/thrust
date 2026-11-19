@@ -3,6 +3,7 @@ import { describe, test as baseTest } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { numberProperty, type TiledProperties } from '../src/logic/mapProperties.ts';
 import { NON_SOLID_TILES } from '../src/logic/tiled.ts';
 import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../src/logic/levels.ts';
 import { HABITAT_RANGE } from '../src/logic/mission.ts';
@@ -32,7 +33,7 @@ interface TiledMap {
 	tileheight: number;
 	layers: MapLayer[];
 	tilesets: { name: string; image: string }[];
-	properties?: Record<string, string>;
+	properties?: TiledProperties;
 }
 type TestBody = () => void;
 
@@ -73,12 +74,12 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		assert.ok(layer('Collectables').objects.filter((o) => o.gid === 71).length >= 1);
 	});
 
-	// Tiled exports these as strings; the game does arithmetic with them.
+	// Read as the game reads them (numberProperty), so either Tiled export format passes.
+	// Tiled stores them as strings; the game does arithmetic with them.
+	const property = (name: string) => numberProperty(map.properties, name, NaN);
 	test('tuning properties are present and numeric', () => {
 		for (const prop of ['fuelExpense', 'lifeExpense', 'enemyShootTime']) {
-			const value = map.properties?.[prop];
-			assert.ok(value !== undefined, `missing map property ${prop}`);
-			assert.ok(Number.isFinite(Number(value)), `${prop} is not numeric: ${value}`);
+			assert.ok(Number.isFinite(property(prop)), `map property ${prop} is missing or not numeric`);
 		}
 	});
 
@@ -200,8 +201,8 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		test('level2 is the harder 64x96 map', () => {
 			assert.equal(map.width, 64);
 			assert.equal(map.height, 96);
-			assert.equal(Number(map.properties?.enemyShootTime), 1800);
-			assert.equal(Number(map.properties?.lifeExpense), 25);
+			assert.equal(property('enemyShootTime'), 1800);
+			assert.equal(property('lifeExpense'), 25);
 			assert.equal(layer('Enemy').objects.length, 5);
 			assert.equal(layer('Collectables').objects.length, 3);
 		});

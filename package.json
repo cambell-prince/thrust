@@ -11,7 +11,8 @@
     "deploy": "vite build && ./scripts/deploy.sh",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "maps": "./scripts/export-maps.sh"
   },
   "repository": {
     "type": "git",

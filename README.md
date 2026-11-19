@@ -23,6 +23,7 @@ npm run build    # production build in dist/
 npm run typecheck # TypeScript type check (tsc -b)
 npm run lint     # ESLint with typescript-eslint
 npm test         # unit tests, asset/level checks and a test build
+npm run maps     # export the Tiled maps (public/assets/*.tmx) to .json (needs Tiled)
 npm run test:e2e # plays the built game in headless Chromium (first: npx playwright install chromium)
 ```
 
