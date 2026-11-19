@@ -432,12 +432,23 @@ for (const level of [1, 2]) {
 				stuck.push(`${fired.name} (${fired.shots === -1 ? 'sees no open spot' : 'did not fire'})`);
 				continue;
 			}
-			await frames(page, 20); // ~0.33 s at 120 px/s: about 40 px
-			const flown = await inScene(page, (scene, from) => {
-				const [bullet] = scene.enemyBullets.getMatching('active', true) as Sprite[];
-				return bullet ? Math.hypot(bullet.x - from.x, bullet.y - from.y) : -1;
-			}, fired);
-			if (flown < 30) stuck.push(`${fired.name} (${flown === -1 ? 'bullet died' : `${flown.toFixed(0)} px`})`);
+			// Follow the shot until it dies (on rock or the ship, further on) or 40 frames pass. It must
+			// first get well clear of the barrel's tip, wherever it ends up.
+			const barrel = await inScene(page, (scene) => {
+				const [shooter] = scene.enemies.getChildren() as Sprite[];
+				return shooter.displayWidth * (1 - shooter.originX);
+			});
+			let farthest = 0;
+			for (let f = 0; f < 40 && farthest < barrel + 24; f++) {
+				await frames(page, 1);
+				const flown = await inScene(page, (scene, from) => {
+					const [bullet] = scene.enemyBullets.getMatching('active', true) as Sprite[];
+					return bullet ? Math.hypot(bullet.x - from.x, bullet.y - from.y) : -1;
+				}, fired);
+				if (flown === -1) break;
+				farthest = Math.max(farthest, flown);
+			}
+			if (farthest < barrel + 24) stuck.push(`${fired.name} (died ${farthest.toFixed(0)} px from its pivot)`);
 		}
 		expect(stuck).toEqual([]);
 	});
