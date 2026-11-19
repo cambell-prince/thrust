@@ -1,7 +1,7 @@
 export const PATROL_SPEED = 30;
 
 /** The animation and velocity a walking collectable switches to when it meets a wall. */
-export function reversePatrol(currentAnim) {
+export function reversePatrol(currentAnim: string | undefined): { anim: string; velocityX: number } | null {
 	if (currentAnim === 'dude-right') {
 		return { anim: 'dude-left', velocityX: -PATROL_SPEED };
 	}

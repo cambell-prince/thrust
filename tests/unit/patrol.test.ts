@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PATROL_SPEED, reversePatrol } from '../../js/logic/patrol.js';
+import { PATROL_SPEED, reversePatrol } from '../../js/logic/patrol.ts';
 
 describe('reversePatrol', () => {
 	it('turns a right-walker left', () => {

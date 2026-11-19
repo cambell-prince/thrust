@@ -1,0 +1,5 @@
+{
+	// `tsc -b` checks both projects: the game (tsconfig.app.json) and the tests and tool configs (tsconfig.node.json).
+	"files": [],
+	"references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}

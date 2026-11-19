@@ -1,0 +1,9 @@
+{
+	// The game, bundled by Vite for the browser.
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["vite/client"],
+		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+	},
+	"include": ["js"]
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ShipStatus } from '../../js/logic/shipStatus.js';
+import { ShipStatus } from '../../js/logic/shipStatus.ts';
 
 describe('ShipStatus', () => {
 	it('starts full with no score', () => {

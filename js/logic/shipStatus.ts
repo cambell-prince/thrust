@@ -1,37 +1,37 @@
 export const MAX_GAUGE = 100;
 
-function clampGauge(amount) {
+function clampGauge(amount: number): number {
 	return Math.min(MAX_GAUGE, Math.max(0, amount));
 }
 
 /** Fuel, life and score: the state behind the scoreboard. */
 export class ShipStatus {
-	constructor() {
-		this.reset();
-	}
+	fuel = MAX_GAUGE;
+	life = MAX_GAUGE;
+	score = 0;
 
-	reset() {
+	reset(): void {
 		this.fuel = MAX_GAUGE;
 		this.life = MAX_GAUGE;
 		this.score = 0;
 	}
 
-	setFuel(amount) {
+	setFuel(amount: number): number {
 		this.fuel = clampGauge(amount);
 		return this.fuel;
 	}
 
-	setLife(amount) {
+	setLife(amount: number): number {
 		this.life = clampGauge(amount);
 		return this.life;
 	}
 
-	changeScore(change) {
+	changeScore(change: number): number {
 		this.score += change;
 		return this.score;
 	}
 
-	get isDead() {
+	get isDead(): boolean {
 		return this.life <= 0;
 	}
 }

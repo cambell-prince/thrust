@@ -1,15 +1,17 @@
 /** A repeat limiter driven by the scene clock (milliseconds). */
 export class Cooldown {
-	constructor(interval) {
+	interval: number;
+	readyAt = -Infinity;
+
+	constructor(interval: number) {
 		this.interval = interval;
-		this.readyAt = -Infinity;
 	}
 
-	ready(now) {
+	ready(now: number): boolean {
 		return now > this.readyAt;
 	}
 
-	trigger(now, interval = this.interval) {
+	trigger(now: number, interval: number = this.interval): void {
 		this.readyAt = now + interval;
 	}
 }

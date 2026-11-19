@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	// Relative base: the demo is served from a sub-path (/thrust/).
@@ -10,7 +10,7 @@ export default defineConfig({
 		chunkSizeWarningLimit: 2000,
 	},
 	test: {
-		// Browser tests are tests/e2e/*.spec.js, run by Playwright.
-		include: ['tests/**/*.test.js'],
+		// Browser tests are tests/e2e/*.spec.ts, run by Playwright.
+		include: ['tests/**/*.test.ts'],
 	},
 });

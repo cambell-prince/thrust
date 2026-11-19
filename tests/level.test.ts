@@ -3,23 +3,50 @@ import { describe, test as baseTest } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { NON_SOLID_TILES } from '../js/logic/tiled.js';
-import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../js/logic/levels.js';
-import { HABITAT_RANGE } from '../js/logic/mission.js';
-import { reachableBoxes } from './helpers/reachability.js';
+import { NON_SOLID_TILES } from '../js/logic/tiled.ts';
+import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../js/logic/levels.ts';
+import { HABITAT_RANGE } from '../js/logic/mission.ts';
+import { reachableBoxes } from './helpers/reachability.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const solid = (gid) => Number.isInteger(gid) && gid > 0 && !NON_SOLID_TILES.includes(gid);
+/** The parts of a Tiled JSON export the tests read. A layer has `data` or `objects`, by its type. */
+interface MapObject {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	gid?: number;
+}
+interface MapLayer {
+	name: string;
+	type: string;
+	width: number;
+	height: number;
+	data: number[];
+	objects: MapObject[];
+}
+interface TiledMap {
+	width: number;
+	height: number;
+	tilewidth: number;
+	tileheight: number;
+	layers: MapLayer[];
+	tilesets: { name: string; image: string }[];
+	properties?: Record<string, string>;
+}
+type TestBody = () => void;
+
+const solid = (gid: number): boolean => Number.isInteger(gid) && gid > 0 && !NON_SOLID_TILES.includes(gid);
 
 describe.each(LEVELS)('$key', ({ key, file }) => {
 	const path = root + 'public/assets/' + file;
 	const exists = existsSync(path);
-	const map = exists ? JSON.parse(readFileSync(path, 'utf8')) : { layers: [] };
+	const map = exists ? JSON.parse(readFileSync(path, 'utf8')) as TiledMap : { layers: [] } as unknown as TiledMap;
 	// A missing map is one clear failure; the other tests of that level are skipped.
-	const test = (name, fn) => (exists || name === 'the map file exists' ? baseTest(name, fn) : baseTest.skip(name, fn));
-	test.skipIf = (cond) => (name, fn) => (cond || !exists ? baseTest.skip(name, fn) : baseTest(name, fn));
-	const layer = (name) => map.layers.find((l) => l.name === name);
-	const wallGid = (row, col) => layer('Walls').data[row * layer('Walls').width + col];
+	const test = (name: string, fn: TestBody) => (exists || name === 'the map file exists' ? baseTest(name, fn) : baseTest.skip(name, fn));
+	const testSkipIf = (cond: boolean) => (name: string, fn: TestBody) => (cond || !exists ? baseTest.skip(name, fn) : baseTest(name, fn));
+	const layer = (name: string) => map.layers.find((l) => l.name === name) as MapLayer;
+	const wallGid = (row: number, col: number) => layer('Walls').data[row * layer('Walls').width + col];
 
 	test('the map file exists', () => {
 		assert.ok(existsSync(path), `missing public/assets/${file}`);
@@ -89,7 +116,7 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 	});
 
 	// level1's ledge runs from the map's left edge to just past the habitat (1 tile on its right).
-	test.skipIf(key === 'level1')('the habitat ledge has 5 solid tiles beyond the habitat on both sides, open above', () => {
+	testSkipIf(key === 'level1')('the habitat ledge has 5 solid tiles beyond the habitat on both sides, open above', () => {
 		const walls = layer('Walls');
 		const [box] = layer('Habitat').objects;
 		const groundRow = (box.y + box.height) / map.tileheight;
@@ -132,7 +159,7 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 			box: boxSize,
 		});
 		assert.ok(boxes.size > 0, 'the ship start is inside rock');
-		const cells = [...boxes].map((k) => k.split(',').map(Number));
+		const cells = [...boxes].map((k: string) => k.split(',').map(Number));
 		const groundRow = (box.y + box.height) / th;
 		const landing = cells.some(([c, r]) => {
 			const centreX = (c + boxSize / 2) * tw;
@@ -167,8 +194,8 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		test('level2 is the harder 64x96 map', () => {
 			assert.equal(map.width, 64);
 			assert.equal(map.height, 96);
-			assert.equal(Number(map.properties.enemyShootTime), 1800);
-			assert.equal(Number(map.properties.lifeExpense), 25);
+			assert.equal(Number(map.properties?.enemyShootTime), 1800);
+			assert.equal(Number(map.properties?.lifeExpense), 25);
 			assert.equal(layer('Enemy').objects.length, 5);
 			assert.equal(layer('Collectables').objects.length, 3);
 		});
