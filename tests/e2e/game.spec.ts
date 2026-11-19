@@ -269,6 +269,8 @@ test('?level=2 boots level 2, and a bad ?level= boots level 1', async ({ page })
 });
 
 test('completing the last level shows ALL MISSIONS COMPLETE, waits, and SPACE starts a new game', async ({ page }) => {
+	// Three unloads plus a deliberate 6 s wait; at 1200x900 CI's software WebGL runs game time slowly.
+	test.slow();
 	const errors = await openGame(page, '?level=2');
 	await inScene(page, (scene) => scene.status.changeScore(1000));
 	await rescueAll(page);
