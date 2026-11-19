@@ -1,17 +1,34 @@
-import { MAX_GAUGE } from '../logic/shipStatus.js';
+import type Phaser from 'phaser';
+import type { Mission } from '../logic/mission.ts';
+import { MAX_GAUGE, type ShipStatus } from '../logic/shipStatus.ts';
 
-const TEXT_STYLE = { fontFamily: 'Arial', fontSize: '11px', color: '#ffffff' };
+const TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = { fontFamily: 'Arial', fontSize: '11px', color: '#ffffff' };
 const OUTLINE_COLOR = 0xffd900;
 const EMPTY_COLOR = 0x000000;
+
+interface Gauge {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	color: number;
+}
 
 const GAUGES = {
 	life: { x: 42, y: 10, width: 140, height: 6, color: 0x6699ff },
 	fuel: { x: 236, y: 10, width: 140, height: 6, color: 0xff3300 },
-};
+} satisfies Record<string, Gauge>;
 
 /** The camera-fixed HUD: life and fuel gauges, the mission (level) number and count (delivered/total, +aboard) and score. */
 export class Scoreboard {
-	constructor(scene, status, mission, levelNumber) {
+	status: ShipStatus;
+	mission: Mission;
+	graphics: Phaser.GameObjects.Graphics;
+	missionLabel: Phaser.GameObjects.Text;
+	missionText: Phaser.GameObjects.Text;
+	scoreText: Phaser.GameObjects.Text;
+
+	constructor(scene: Phaser.Scene, status: ShipStatus, mission: Mission, levelNumber: number) {
 		this.status = status;
 		this.mission = mission;
 		this.graphics = scene.add.graphics();
@@ -31,7 +48,7 @@ export class Scoreboard {
 	}
 
 	/** Redraw from the current status and mission. Call after changing fuel, life, score or cargo. */
-	refresh() {
+	refresh(): void {
 		this.graphics.clear();
 		this.drawGauge(GAUGES.life, this.status.life);
 		this.drawGauge(GAUGES.fuel, this.status.fuel);
@@ -40,7 +57,7 @@ export class Scoreboard {
 		this.scoreText.setText(String(this.status.score));
 	}
 
-	drawGauge({ x, y, width, height, color }, amount) {
+	drawGauge({ x, y, width, height, color }: Gauge, amount: number): void {
 		const filled = (width * amount) / MAX_GAUGE;
 		this.graphics.fillStyle(color).fillRect(x - 1, y - 1, width + 2, height + 2);
 		this.graphics.lineStyle(2, OUTLINE_COLOR).strokeRect(x - 1, y - 1, width + 2, height + 2);

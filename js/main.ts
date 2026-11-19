@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { levelIndexFromSearch } from './logic/levels.js';
-import { LevelScene } from './scenes/LevelScene.js';
+import { levelIndexFromSearch } from './logic/levels.ts';
+import { LevelScene } from './scenes/LevelScene.ts';
 
 const game = new Phaser.Game({
 	type: Phaser.AUTO,

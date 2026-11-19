@@ -4,8 +4,19 @@
  * free of solid tiles and reachable, by one-tile steps, from a free window that
  * contains the start tile.
  */
-export function reachableBoxes({ data, width, height, solid, start, box = 3 }) {
-	const free = (col, row) => {
+export interface ReachOptions {
+	/** The tile gids, row by row. */
+	data: number[];
+	width: number;
+	height: number;
+	solid: (gid: number) => boolean;
+	start: { col: number; row: number };
+	/** The craft's size in tiles. */
+	box?: number;
+}
+
+export function reachableBoxes({ data, width, height, solid, start, box = 3 }: ReachOptions): Set<string> {
+	const free = (col: number, row: number): boolean => {
 		if (col < 0 || row < 0 || col + box > width || row + box > height) {
 			return false;
 		}
@@ -19,9 +30,9 @@ export function reachableBoxes({ data, width, height, solid, start, box = 3 }) {
 		return true;
 	};
 
-	const seen = new Set();
-	const queue = [];
-	const visit = (col, row) => {
+	const seen = new Set<string>();
+	const queue: [number, number][] = [];
+	const visit = (col: number, row: number): void => {
 		const key = `${col},${row}`;
 		if (!seen.has(key) && free(col, row)) {
 			seen.add(key);

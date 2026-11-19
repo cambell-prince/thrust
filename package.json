@@ -9,7 +9,9 @@
     "test": "vitest run --maxWorkers=4",
     "package": "vite build && tar -czf thrust-$npm_package_version.tgz -C dist .",
     "deploy": "vite build && ./scripts/deploy.sh",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -b",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -18,7 +20,13 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
     "vite": "^8.3.8",
     "vitest": "^5.1.1"
   },

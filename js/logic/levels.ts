@@ -1,5 +1,13 @@
-/** The levels in play order: the Phaser cache key and the Tiled JSON file under assets/. */
-export const LEVELS = [
+/** A level: its Phaser cache key and Tiled JSON file. */
+export interface Level {
+	/** The Phaser cache key. */
+	key: string;
+	/** The Tiled JSON file under assets/. */
+	file: string;
+}
+
+/** The levels in play order. */
+export const LEVELS: readonly Level[] = [
 	{ key: 'level1', file: 'level1.json' },
 	{ key: 'level2', file: 'level2.json' },
 ];
@@ -16,17 +24,17 @@ export const SHIP_START_MARGIN = 40;
 export const SHIP_BODY_LEFT = 22;
 export const SHIP_BODY_RIGHT = 24;
 
-export function isLastLevel(index) {
+export function isLastLevel(index: number): boolean {
 	return index >= LEVELS.length - 1;
 }
 
 /** The level after `index`; the first level after the last or for an index that is not a level. */
-export function nextLevelIndex(index) {
+export function nextLevelIndex(index: number): number {
 	return Number.isInteger(index) && index >= 0 && index <= LEVELS.length - 2 ? index + 1 : 0;
 }
 
 /** The 0-based level index from a URL search string's 1-based `level`; 0 when missing or invalid. */
-export function levelIndexFromSearch(search) {
+export function levelIndexFromSearch(search: string): number {
 	const value = new URLSearchParams(search).get('level');
 	if (value === null || !/^\d+$/.test(value)) {
 		return 0;
@@ -40,11 +48,11 @@ export function levelIndexFromSearch(search) {
  * when the left is too near the map edge), kept inside the map.
  * `habitat` is the Tiled rectangle's `{ x, y, width }`.
  */
-export function shipStartPosition(habitat, mapWidth) {
+export function shipStartPosition(habitat: { x: number; y: number; width: number }, mapWidth: number): { x: number; y: number } {
 	const left = habitat.x - SHIP_START_BESIDE;
 	const right = habitat.x + habitat.width + SHIP_START_BESIDE;
-	const clamp = (value) => Math.min(Math.max(value, SHIP_START_MARGIN), mapWidth - SHIP_START_MARGIN);
-	const onHabitat = (value) => value + SHIP_BODY_RIGHT > habitat.x && value - SHIP_BODY_LEFT < habitat.x + habitat.width;
+	const clamp = (value: number): number => Math.min(Math.max(value, SHIP_START_MARGIN), mapWidth - SHIP_START_MARGIN);
+	const onHabitat = (value: number): boolean => value + SHIP_BODY_RIGHT > habitat.x && value - SHIP_BODY_LEFT < habitat.x + habitat.width;
 	const [first, other] = left < SHIP_START_MARGIN ? [right, left] : [left, right];
 	let x = clamp(first);
 	if (onHabitat(x) && !onHabitat(clamp(other))) {

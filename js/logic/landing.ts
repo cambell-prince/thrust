@@ -7,7 +7,7 @@ const LANDING_TOLERANCE = 45;
  * it is on the floor, roughly nose-up, not already upright, and not already
  * being uprighted.
  */
-export function shouldUpright({ angle, onFloor, tweenPlaying }) {
+export function shouldUpright({ angle, onFloor, tweenPlaying }: { angle: number; onFloor: boolean; tweenPlaying: boolean }): boolean {
 	if (tweenPlaying || !onFloor) {
 		return false;
 	}

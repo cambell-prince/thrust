@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { reachableBoxes } from '../helpers/reachability.js';
+import { reachableBoxes } from '../helpers/reachability.ts';
 
 /** Build a grid from rows of '#' (solid) and '.' (open). */
-function grid(rows) {
+function grid(rows: string[]) {
 	const height = rows.length;
 	const width = rows[0].length;
-	const data = rows.join('').split('').map((ch) => (ch === '#' ? 1 : 0));
-	return { data, width, height, solid: (gid) => gid !== 0 };
+	const data = rows.join('').split('').map((ch): number => (ch === '#' ? 1 : 0));
+	return { data, width, height, solid: (gid: number) => gid !== 0 };
 }
 
 describe('reachableBoxes', () => {

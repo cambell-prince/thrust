@@ -1,13 +1,48 @@
 import Phaser from 'phaser';
-import { Scoreboard } from '../hud/Scoreboard.js';
-import { Cooldown } from '../logic/cooldown.js';
-import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.js';
-import { isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.js';
-import { numberProperty } from '../logic/mapProperties.js';
-import { canUnload, Mission } from '../logic/mission.js';
-import { PATROL_SPEED, reversePatrol } from '../logic/patrol.js';
-import { ShipStatus } from '../logic/shipStatus.js';
-import { NON_SOLID_TILES, objectSpawnPosition, objectsWithGid } from '../logic/tiled.js';
+import { Scoreboard } from '../hud/Scoreboard.ts';
+import { Cooldown } from '../logic/cooldown.ts';
+import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.ts';
+import { isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
+import { numberProperty, type TiledProperties } from '../logic/mapProperties.ts';
+import { canUnload, Mission } from '../logic/mission.ts';
+import { PATROL_SPEED, reversePatrol } from '../logic/patrol.ts';
+import { ShipStatus } from '../logic/shipStatus.ts';
+import { NON_SOLID_TILES, objectSpawnPosition, objectsWithGid } from '../logic/tiled.ts';
+
+type Sprite = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+/** A collectable: a sprite that remembers when it may next turn at a wall. */
+type Dude = Sprite & { nextTurn?: number };
+/** What Arcade passes a collide or overlap callback: a game object with a body, a body or a tile. */
+type ArcadeObject = Parameters<Phaser.Types.Physics.Arcade.ArcadePhysicsCallback>[0];
+
+/** The scene's start data: the level (0-based) and the score carried over from the last one. */
+export interface LevelData {
+	levelIndex?: number;
+	score?: number;
+}
+
+/** Gameplay tuning read from the map's properties. */
+export interface Tuning {
+	fuelExpense: number;
+	lifeExpense: number;
+	enemyShootTime: number;
+}
+
+/** The Tiled `Habitat` rectangle. */
+interface Box {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/** Where the habitat stands: its left edge and width, its door's x and its floor's y. */
+interface HabitatZone {
+	x: number;
+	width: number;
+	doorX: number;
+	floorY: number;
+}
 
 const ENEMY_GID = 69;
 const COLLECTABLE_GID = 71;
@@ -33,18 +68,49 @@ const RESTART_DELAY = 5000; // ms the mission-complete banner shows before the n
 const BANNER_DEPTH = 200; // above the HUD (100)
 
 export class LevelScene extends Phaser.Scene {
+	// Set in init() and create(), which Phaser calls before update().
+	levelIndex = 0;
+	carriedScore = 0;
+	status!: ShipStatus;
+	shipFire!: Cooldown;
+	fuelTick!: Cooldown;
+	enemyFire!: Cooldown;
+	unloadTick!: Cooldown;
+	map!: Phaser.Tilemaps.Tilemap;
+	walls!: Phaser.Tilemaps.TilemapLayer;
+	tuning!: Tuning;
+	habitat: Phaser.GameObjects.Image | null = null;
+	habitatBox: Box | null = null;
+	habitatZone: HabitatZone | null = null;
+	ship!: Sprite;
+	shipTween!: Phaser.Tweens.Tween;
+	shipBullets!: Phaser.Physics.Arcade.Group;
+	enemies!: Phaser.Physics.Arcade.Group;
+	enemyBullets!: Phaser.Physics.Arcade.Group;
+	collectables!: Phaser.Physics.Arcade.Group;
+	explosions!: Phaser.GameObjects.Group;
+	mission!: Mission;
+	levelComplete = false;
+	restarting = false;
+	walkingDudes = 0;
+	banner: Phaser.GameObjects.Container | undefined;
+	scoreboard!: Scoreboard;
+	keyboard!: Phaser.Input.Keyboard.KeyboardPlugin;
+	cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+	fireKey!: Phaser.Input.Keyboard.Key;
+
 	constructor() {
 		super('Level');
 	}
 
 	/** `data.levelIndex` picks the level (0-based); `data.score` is carried over from the last one. */
-	init(data) {
+	init(data?: LevelData): void {
 		const index = data?.levelIndex ?? 0;
 		this.levelIndex = Number.isInteger(index) && index >= 0 && index < LEVELS.length ? index : 0;
 		this.carriedScore = data?.score ?? 0;
 	}
 
-	preload() {
+	preload(): void {
 		this.load.setPath('assets/');
 		this.load.image('background', 'background2.png');
 		this.load.spritesheet('ship', 'ship.png', { frameWidth: 70, frameHeight: 48, margin: 2, spacing: 2 });
@@ -60,7 +126,7 @@ export class LevelScene extends Phaser.Scene {
 		}
 	}
 
-	create() {
+	create(): void {
 		this.status = new ShipStatus();
 		this.status.changeScore(this.carriedScore);
 		this.shipFire = new Cooldown(500); // TODO map.properties
@@ -92,22 +158,30 @@ export class LevelScene extends Phaser.Scene {
 
 		this.scoreboard = new Scoreboard(this, this.status, this.mission, this.levelIndex + 1);
 
-		this.cursors = this.input.keyboard.createCursorKeys();
-		this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+		if (!this.input.keyboard) {
+			throw new Error('The game needs keyboard input');
+		}
+		this.keyboard = this.input.keyboard;
+		this.cursors = this.keyboard.createCursorKeys();
+		this.fireKey = this.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
 		this.addColliders();
 	}
 
-	createAnimations() {
-		const add = (config) => this.anims.exists(config.key) || this.anims.create(config);
-		const dudeFrames = (start, end) => this.anims.generateFrameNumbers('dude', { start, end });
+	createAnimations(): void {
+		const add = (config: Phaser.Types.Animations.Animation): void => {
+			if (config.key && !this.anims.exists(config.key)) {
+				this.anims.create(config);
+			}
+		};
+		const dudeFrames = (start: number, end: number) => this.anims.generateFrameNumbers('dude', { start, end });
 		add({ key: 'dude-left', frames: dudeFrames(0, 3), frameRate: 10, repeat: -1 });
 		add({ key: 'dude-turn', frames: dudeFrames(4, 4), frameRate: 20 });
 		add({ key: 'dude-right', frames: dudeFrames(5, 8), frameRate: 10, repeat: -1 });
 		add({ key: 'kaboom', frames: this.anims.generateFrameNumbers('kaboom'), frameRate: 30 });
 	}
 
-	createShip() {
+	createShip(): void {
 		const start = this.habitatBox ? shipStartPosition(this.habitatBox, this.map.widthInPixels) : DEFAULT_SHIP_START;
 		const ship = this.physics.add.sprite(start.x, start.y, 'ship', SHIP_FRAME.IDLE);
 		ship.setOrigin(0.7, 0.5).setDepth(SHIP_DEPTH);
@@ -121,17 +195,25 @@ export class LevelScene extends Phaser.Scene {
 		this.cameras.main.startFollow(ship);
 	}
 
-	createLevel() {
-		this.map = this.make.tilemap({ key: LEVELS[this.levelIndex].key });
+	createLevel(): void {
+		const level = LEVELS[this.levelIndex];
+		if (!level) {
+			throw new Error(`No level ${this.levelIndex}`);
+		}
+		this.map = this.make.tilemap({ key: level.key });
 		const tiles = this.map.addTilesetImage('tiles-1');
-		this.walls = this.map.createLayer('Walls', tiles);
+		const walls = tiles && this.map.createLayer('Walls', tiles);
+		if (!(walls instanceof Phaser.Tilemaps.TilemapLayer)) {
+			throw new Error(`${level.file} needs a Walls tile layer using the tiles-1 tileset`);
+		}
+		this.walls = walls;
 		this.walls.setCollisionByExclusion(NON_SOLID_TILES);
 
 		const { widthInPixels, heightInPixels } = this.map;
 		this.physics.world.setBounds(0, 0, widthInPixels, heightInPixels);
 		this.cameras.main.setBounds(0, 0, widthInPixels, heightInPixels);
 
-		const props = this.map.properties;
+		const props = this.map.properties as TiledProperties;
 		this.tuning = {
 			fuelExpense: numberProperty(props, 'fuelExpense', 1),
 			lifeExpense: numberProperty(props, 'lifeExpense', 20),
@@ -140,11 +222,14 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	/** The habitat image, standing on the bottom edge of the Tiled `Habitat` rectangle. */
-	createHabitat() {
+	createHabitat(): void {
 		this.habitat = null;
 		this.habitatZone = null;
-		const [box] = this.map.getObjectLayer('Habitat')?.objects ?? [];
-		this.habitatBox = box ?? null;
+		const [object] = this.map.getObjectLayer('Habitat')?.objects ?? [];
+		this.habitatBox = object
+			? { x: object.x ?? 0, y: object.y ?? 0, width: object.width ?? 0, height: object.height ?? 0 }
+			: null;
+		const box = this.habitatBox;
 		if (!box) {
 			return;
 		}
@@ -154,25 +239,25 @@ export class LevelScene extends Phaser.Scene {
 		this.habitatZone = { x: box.x, width: box.width, doorX, floorY };
 	}
 
-	createBulletPool(key) {
+	createBulletPool(key: string): Phaser.Physics.Arcade.Group {
 		return this.physics.add.group({
 			defaultKey: key,
 			maxSize: BULLET_POOL,
 			allowGravity: false,
-			createCallback: (bullet) => bullet.setOrigin(0.5, 1),
+			createCallback: (bullet) => (bullet as Sprite).setOrigin(0.5, 1),
 		});
 	}
 
 	/** Sprites for the tile objects with `gid` on a Tiled object layer, placed as Phaser 2 did. */
-	spawnFromObjects(group, layerName, gid, key) {
+	spawnFromObjects(group: Phaser.Physics.Arcade.Group, layerName: string, gid: number, key: string): Sprite[] {
 		const height = this.textures.getFrame(key, 0).height;
 		return objectsWithGid(this.map.getObjectLayer(layerName), gid).map((obj) => {
 			const { x, y } = objectSpawnPosition(obj, height);
-			return group.create(x, y, key, 0).setName(obj.name);
+			return (group.create(x, y, key, 0) as Sprite).setName(obj.name);
 		});
 	}
 
-	createEnemies() {
+	createEnemies(): Phaser.Physics.Arcade.Group {
 		const enemies = this.physics.add.group({ allowGravity: false, immovable: true });
 		for (const enemy of this.spawnFromObjects(enemies, 'Enemy', ENEMY_GID, 'arrow')) {
 			enemy.setOrigin(0.25, 0.5).setScale(0.5);
@@ -180,7 +265,7 @@ export class LevelScene extends Phaser.Scene {
 		return enemies;
 	}
 
-	createCollectables() {
+	createCollectables(): Phaser.Physics.Arcade.Group {
 		const collectables = this.physics.add.group();
 		for (const dude of this.spawnFromObjects(collectables, 'Collectables', COLLECTABLE_GID, 'dude')) {
 			// TODO treat other collectables (by Tiled type) differently
@@ -194,21 +279,23 @@ export class LevelScene extends Phaser.Scene {
 		return collectables;
 	}
 
-	addColliders() {
+	addColliders(): void {
 		const { physics } = this;
 		// Arcade passes a lone sprite first and a group member second, so sprites go first here.
+		// Its callbacks take any game object, body or tile, so each one says which it gets.
+		const sprite = (object: ArcadeObject) => object as Sprite;
 		physics.add.collider(this.ship, this.walls, () => this.uprightIfLanded());
-		physics.add.collider(this.collectables, this.walls, (dude) => this.turnAtWall(dude));
-		physics.add.overlap(this.ship, this.collectables, (ship, dude) => this.rescue(dude));
+		physics.add.collider(this.collectables, this.walls, (dude) => this.turnAtWall(sprite(dude)));
+		physics.add.overlap(this.ship, this.collectables, (_ship, dude) => this.rescue(sprite(dude)));
 		// Overlaps with a tilemap layer test every tile, empty ones included, so only count walls.
-		const solidTile = (bullet, tile) => tile.collides;
-		physics.add.overlap(this.shipBullets, this.walls, (bullet) => this.bulletHitsWall(bullet), solidTile);
-		physics.add.overlap(this.enemyBullets, this.walls, (bullet) => this.bulletHitsWall(bullet), solidTile);
-		physics.add.overlap(this.shipBullets, this.enemies, (bullet, enemy) => this.bulletHitsEnemy(bullet, enemy));
-		physics.add.overlap(this.ship, this.enemyBullets, (ship, bullet) => this.enemyBulletHitsShip(bullet));
+		const solidTile = (_bullet: ArcadeObject, tile: ArcadeObject) => (tile as Phaser.Tilemaps.Tile).collides;
+		physics.add.overlap(this.shipBullets, this.walls, (bullet) => this.bulletHitsWall(sprite(bullet)), solidTile);
+		physics.add.overlap(this.enemyBullets, this.walls, (bullet) => this.bulletHitsWall(sprite(bullet)), solidTile);
+		physics.add.overlap(this.shipBullets, this.enemies, (bullet, enemy) => this.bulletHitsEnemy(sprite(bullet), sprite(enemy)));
+		physics.add.overlap(this.ship, this.enemyBullets, (_ship, bullet) => this.enemyBulletHitsShip(sprite(bullet)));
 	}
 
-	update(time) {
+	override update(time: number): void {
 		if (this.ship.active && !this.levelComplete) {
 			this.steer(time);
 			if (this.fireKey.isDown && this.shipFire.ready(time)) {
@@ -226,7 +313,7 @@ export class LevelScene extends Phaser.Scene {
 		this.killStrayBullets(this.enemyBullets);
 	}
 
-	landedAtHabitat() {
+	landedAtHabitat(): boolean {
 		if (!this.habitatZone) {
 			return false;
 		}
@@ -242,7 +329,10 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	/** One dude climbs out, walks to the habitat door and goes in, scoring the rescue. */
-	unloadDude() {
+	unloadDude(): void {
+		if (!this.habitatZone) {
+			return;
+		}
 		this.mission.unloadOne();
 		this.scoreboard.refresh();
 		const { doorX, floorY } = this.habitatZone;
@@ -266,7 +356,7 @@ export class LevelScene extends Phaser.Scene {
 		dude.once(Phaser.GameObjects.Events.DESTROY, () => { this.walkingDudes -= 1; });
 	}
 
-	dudesWalking() {
+	dudesWalking(): boolean {
 		return this.walkingDudes > 0;
 	}
 
@@ -274,7 +364,7 @@ export class LevelScene extends Phaser.Scene {
 	 * Freeze play and show the mission-complete banner. SPACE, or RESTART_DELAY, goes on to the next
 	 * level with the score; after the last level only SPACE does, and it starts a new game.
 	 */
-	completeLevel() {
+	completeLevel(): void {
 		if (this.levelComplete) {
 			return;
 		}
@@ -283,7 +373,7 @@ export class LevelScene extends Phaser.Scene {
 		ship.setVelocity(0, 0).setAcceleration(0).setAngularVelocity(0);
 		ship.body.setAllowGravity(false);
 		ship.setFrame(SHIP_FRAME.IDLE);
-		for (const bullet of [...this.enemyBullets.getMatching('active', true), ...this.shipBullets.getMatching('active', true)]) {
+		for (const bullet of [...this.activeSprites(this.enemyBullets), ...this.activeSprites(this.shipBullets)]) {
 			bullet.disableBody(true, true);
 		}
 
@@ -303,15 +393,15 @@ export class LevelScene extends Phaser.Scene {
 
 		// A fresh press only: a fire key already held when the level ends must not skip the banner.
 		// Phaser emits no keydown-SPACE for auto-repeats of a registered key (fireKey) that is down.
-		const next = last ? { levelIndex: 0, score: 0 } : { levelIndex: nextLevelIndex(this.levelIndex), score: this.status.score };
-		this.input.keyboard.once('keydown-SPACE', () => this.goToLevel(next));
+		const next: LevelData = last ? { levelIndex: 0, score: 0 } : { levelIndex: nextLevelIndex(this.levelIndex), score: this.status.score };
+		this.keyboard.once('keydown-SPACE', () => this.goToLevel(next));
 		if (!last) {
 			this.time.delayedCall(RESTART_DELAY, () => this.goToLevel(next));
 		}
 	}
 
 	/** Restart the scene on the level in `data` (`{ levelIndex, score }`), once. */
-	goToLevel(data) {
+	goToLevel(data: LevelData): void {
 		if (this.restarting) {
 			return;
 		}
@@ -319,9 +409,9 @@ export class LevelScene extends Phaser.Scene {
 		this.scene.restart(data);
 	}
 
-	steer(time) {
+	steer(time: number): void {
 		const { ship, cursors } = this;
-		let frame = ship.frame.name;
+		let frame: number;
 		if (cursors.left.isDown) {
 			ship.setAngularVelocity(-SHIP_TURN_SPEED);
 			frame = SHIP_FRAME.LEFT;
@@ -347,12 +437,12 @@ export class LevelScene extends Phaser.Scene {
 		ship.setFrame(frame);
 	}
 
-	uprightIfLanded() {
+	uprightIfLanded(): void {
 		const { ship } = this;
 		const landed = shouldUpright({
 			angle: ship.angle,
 			onFloor: ship.body.onFloor(),
-			tweenPlaying: Boolean(this.shipTween && this.shipTween.isPlaying()),
+			tweenPlaying: this.shipTween.isPlaying(),
 		});
 		if (landed) {
 			ship.setAngularVelocity(0);
@@ -360,7 +450,7 @@ export class LevelScene extends Phaser.Scene {
 		}
 	}
 
-	turnAtWall(dude) {
+	turnAtWall(dude: Dude): void {
 		const now = this.time.now;
 		// Debounce: the dude may still be touching the wall it just turned from.
 		if (dude.nextTurn && now < dude.nextTurn) {
@@ -376,9 +466,9 @@ export class LevelScene extends Phaser.Scene {
 		}
 	}
 
-	shipShoot(time) {
+	shipShoot(time: number): void {
 		const { ship } = this;
-		const bullet = this.shipBullets.get(ship.x, ship.y);
+		const bullet = this.shipBullets.get(ship.x, ship.y) as Sprite | null;
 		if (!bullet) {
 			return;
 		}
@@ -388,8 +478,8 @@ export class LevelScene extends Phaser.Scene {
 		this.shipFire.trigger(time);
 	}
 
-	enemyShoot(time) {
-		const shooters = this.enemies.getChildren();
+	enemyShoot(time: number): void {
+		const shooters = this.enemies.getChildren() as Sprite[];
 		if (shooters.length === 0) {
 			return;
 		}
@@ -403,7 +493,7 @@ export class LevelScene extends Phaser.Scene {
 		if (!this.hasLineOfSight(shooter, ship)) {
 			return;
 		}
-		const bullet = this.enemyBullets.get(shooter.body.x, shooter.body.y);
+		const bullet = this.enemyBullets.get(shooter.body.x, shooter.body.y) as Sprite | null;
 		if (!bullet) {
 			return;
 		}
@@ -413,22 +503,27 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	/** True when no wall tile lies on the straight line between two points. */
-	hasLineOfSight(from, to) {
+	hasLineOfSight(from: Phaser.Types.Math.Vector2Like, to: Phaser.Types.Math.Vector2Like): boolean {
 		const ray = new Phaser.Geom.Line(from.x, from.y, to.x, to.y);
 		return this.walls.getTilesWithinShape(ray, { isColliding: true }).length === 0;
 	}
 
-	killStrayBullets(pool) {
+	/** The pool's sprites in play. */
+	activeSprites(pool: Phaser.GameObjects.Group): Sprite[] {
+		return pool.getMatching('active', true) as Sprite[];
+	}
+
+	killStrayBullets(pool: Phaser.Physics.Arcade.Group): void {
 		const bounds = this.physics.world.bounds;
-		for (const bullet of pool.getMatching('active', true)) {
+		for (const bullet of this.activeSprites(pool)) {
 			if (!bounds.contains(bullet.x, bullet.y)) {
 				bullet.disableBody(true, true);
 			}
 		}
 	}
 
-	explosion(x, y) {
-		const boom = this.explosions.get(x, y);
+	explosion(x: number, y: number): void {
+		const boom = this.explosions.get(x, y) as Phaser.GameObjects.Sprite | null;
 		if (!boom) {
 			return;
 		}
@@ -436,12 +531,12 @@ export class LevelScene extends Phaser.Scene {
 		boom.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => this.explosions.killAndHide(boom));
 	}
 
-	bulletHitsWall(bullet) {
+	bulletHitsWall(bullet: Sprite): void {
 		bullet.disableBody(true, true);
 		this.explosion(bullet.body.x, bullet.body.y);
 	}
 
-	bulletHitsEnemy(bullet, enemy) {
+	bulletHitsEnemy(bullet: Sprite, enemy: Sprite): void {
 		this.bulletHitsWall(bullet);
 		this.status.changeScore(SHIP_SCORE_ENEMY);
 		this.scoreboard.refresh();
@@ -449,7 +544,7 @@ export class LevelScene extends Phaser.Scene {
 		enemy.destroy(); // TODO damage the enemy instead
 	}
 
-	enemyBulletHitsShip(bullet) {
+	enemyBulletHitsShip(bullet: Sprite): void {
 		this.bulletHitsWall(bullet);
 		this.status.setLife(this.status.life - this.tuning.lifeExpense);
 		this.scoreboard.refresh();
@@ -459,7 +554,7 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	/** Take a dude aboard. They score when they walk into the habitat. */
-	rescue(dude) {
+	rescue(dude: Sprite): void {
 		dude.disableBody(true, true);
 		this.mission.pickUp();
 		this.scoreboard.refresh();

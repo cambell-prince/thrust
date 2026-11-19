@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-let outDir;
-let html;
+let outDir: string;
+let html: string;
 
 beforeAll(async () => {
 	outDir = mkdtempSync(join(tmpdir(), 'thrust-build-'));

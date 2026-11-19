@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldUpright } from '../../js/logic/landing.js';
+import { shouldUpright } from '../../js/logic/landing.ts';
 
 describe('shouldUpright', () => {
 	const landed = { angle: -100, onFloor: true, tweenPlaying: false };

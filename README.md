@@ -20,11 +20,15 @@ Requires Node 22.12+.
 npm install
 npm run dev      # dev server with live reload
 npm run build    # production build in dist/
+npm run typecheck # TypeScript type check (tsc -b)
+npm run lint     # ESLint with typescript-eslint
 npm test         # unit tests, asset/level checks and a test build
 npm run test:e2e # plays the built game in headless Chromium (first: npx playwright install chromium)
 ```
 
-CI (`.github/workflows/ci.yml`) tests and builds every push and pull request. When a push to `master` passes, CI deploys it to the demo site.
+The game and its tests are written in TypeScript. Vite strips the types when it builds, so `npm run typecheck` is the step that checks them.
+
+CI (`.github/workflows/ci.yml`) type-checks, lints, tests and builds every push and pull request. When a push to `master` passes, CI deploys it to the demo site.
 
 ## Status
 

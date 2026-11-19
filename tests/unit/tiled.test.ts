@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { objectSpawnPosition, objectsWithGid } from '../../js/logic/tiled.js';
+import { objectSpawnPosition, objectsWithGid } from '../../js/logic/tiled.ts';
 
 describe('objectSpawnPosition', () => {
 	it('lifts the sprite by its texture height (Tiled tile objects sit on their bottom edge)', () => {
