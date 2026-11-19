@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { numberProperty, stringProperty, type TiledProperties } from '../src/logic/mapProperties.ts';
 import { musicKey } from '../src/logic/audio.ts';
 import { NON_SOLID_TILES } from '../src/logic/tiled.ts';
-import { LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../src/logic/levels.ts';
+import { ENEMY_SCALE, ENEMY_TEXTURE_HEIGHT, LEVELS, shipStartPosition, SHIP_BODY_LEFT, SHIP_BODY_RIGHT } from '../src/logic/levels.ts';
 import { HABITAT_RANGE } from '../src/logic/mission.ts';
 import { reachableBoxes } from './helpers/reachability.ts';
 
@@ -142,6 +142,25 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 				assert.ok(!solid(walls.data[row * walls.width + col]), `rock above the ledge at ${col},${row}`);
 			}
 		}
+	});
+
+	test('every enemy has room to turn: its pivot is half an enemy width from rock and the map edge', () => {
+		const walls = layer('Walls');
+		const { tilewidth: tw, tileheight: th } = map;
+		// The arrow PNG's width, from its IHDR header, at the scale the scene draws it.
+		const png = readFileSync(root + 'public/assets/longarrow2.png');
+		const clearance = (png.readUInt32BE(16) * ENEMY_SCALE) / 2;
+		const rockAt = (row: number, col: number) => col < 0 || col >= walls.width || solid(wallGid(row, col));
+		const cramped = layer('Enemy').objects.filter((obj) => {
+			// The pivot, as the scene spawns it: objectSpawnPosition() with the 32 px tall texture.
+			const x = obj.x;
+			const row = Math.floor((obj.y - ENEMY_TEXTURE_HEIGHT) / th);
+			for (let col = Math.floor((x - clearance) / tw); col <= Math.floor((x + clearance - 1) / tw); col++) {
+				if (rockAt(row, col)) return true;
+			}
+			return false;
+		});
+		assert.deepEqual(cramped.map((o) => `enemy at ${o.x},${o.y}`), []);
 	});
 
 	test('the ship starts in open space', () => {

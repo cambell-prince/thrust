@@ -4,7 +4,7 @@ import { Scoreboard } from '../hud/Scoreboard.ts';
 import { MUSIC, musicKey, SOUNDS } from '../logic/audio.ts';
 import { Cooldown } from '../logic/cooldown.ts';
 import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.ts';
-import { isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
+import { ENEMY_SCALE, isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
 import { numberProperty, stringProperty, type TiledProperties } from '../logic/mapProperties.ts';
 import { canUnload, Mission } from '../logic/mission.ts';
 import { PATROL_SPEED, reversePatrol } from '../logic/patrol.ts';
@@ -57,6 +57,7 @@ const SHIP_THRUST = 200;
 const SHIP_MAX_SPEED = 200;
 const SHIP_BULLET_SPEED = 300;
 const ENEMY_BULLET_SPEED = 120; // TODO map.properties
+const ENEMY_MUZZLE = 16; // px from an enemy's pivot, toward the ship, where its shot starts
 const BULLET_POOL = 30;
 
 const SHIP_SCORE_ENEMY = 100; // TODO map.properties
@@ -279,7 +280,7 @@ export class LevelScene extends Phaser.Scene {
 	createEnemies(): Phaser.Physics.Arcade.Group {
 		const enemies = this.physics.add.group({ allowGravity: false, immovable: true });
 		for (const enemy of this.spawnFromObjects(enemies, 'Enemy', ENEMY_GID, 'arrow')) {
-			enemy.setOrigin(0.25, 0.5).setScale(0.5);
+			enemy.setOrigin(0.25, 0.5).setScale(ENEMY_SCALE);
 		}
 		return enemies;
 	}
@@ -520,11 +521,16 @@ export class LevelScene extends Phaser.Scene {
 		if (!this.hasLineOfSight(shooter, ship)) {
 			return;
 		}
-		const bullet = this.enemyBullets.get(shooter.body.x, shooter.body.y) as Sprite | null;
+		// Fire from a point on the line just checked, so the shot starts clear of walls and inside the
+		// map even when the enemy hugs rock or sits on the map's edge.
+		const aim = Phaser.Math.Angle.BetweenPoints(shooter, ship);
+		const muzzleX = shooter.x + Math.cos(aim) * ENEMY_MUZZLE;
+		const muzzleY = shooter.y + Math.sin(aim) * ENEMY_MUZZLE;
+		const bullet = this.enemyBullets.get(muzzleX, muzzleY) as Sprite | null;
 		if (!bullet) {
 			return;
 		}
-		bullet.enableBody(true, shooter.body.x, shooter.body.y, true, true);
+		bullet.enableBody(true, muzzleX, muzzleY, true, true);
 		this.physics.moveToObject(bullet, ship, ENEMY_BULLET_SPEED);
 		this.enemyFire.trigger(time, this.tuning.enemyShootTime);
 		this.audio.enemyShot();

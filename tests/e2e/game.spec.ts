@@ -394,3 +394,51 @@ test('enemies only fire with a clear line of sight', async ({ page }) => {
 	expect(result.behindWall).toBe(0);
 	expect(result.inTheOpen).toBe(1);
 });
+
+// Enemies once fired from their body's top-left corner, off the line their line of sight is checked
+// along: beside a wall that corner was inside the rock, and at the map's edge outside the world, so
+// the bullet died where it started. Every enemy's shot at a ship it can see must get away from it.
+for (const level of [1, 2]) {
+	test(`every enemy's shot on level ${level} gets away from the enemy`, async ({ page }) => {
+		await openGame(page, `?level=${level}`);
+		const count = await inScene(page, (scene) => scene.enemies.getLength());
+		const stuck: string[] = [];
+		for (let i = 0; i < count; i++) {
+			// A fresh level each time: enemyShoot() picks a random shooter, so leave only this one.
+			await openGame(page, `?level=${level}`);
+			await parkShip(page);
+			const fired = await inScene(page, (scene, index) => {
+				const enemies = scene.enemies.getChildren() as Sprite[];
+				const shooter = enemies[index];
+				enemies.filter((e) => e !== shooter).forEach((e) => e.destroy());
+				scene.enemyFire.trigger(scene.time.now, 1e9);
+				// The scene's own clock may already have fired.
+				(scene.enemyBullets.getChildren() as Sprite[]).forEach((b) => b.disableBody(true, true));
+				const bounds = scene.physics.world.bounds;
+				// An open spot inside the map that the shooter can see, well away from it.
+				for (let dx = -240; dx <= 240; dx += 16) {
+					for (let dy = -240; dy <= 240; dy += 16) {
+						const spot = { x: shooter.x + dx, y: shooter.y + dy };
+						if (Math.hypot(dx, dy) > 96 && bounds.contains(spot.x, spot.y) && scene.hasLineOfSight(shooter, spot)) {
+							scene.ship.body.reset(spot.x, spot.y);
+							scene.enemyShoot(scene.time.now);
+							return { name: shooter.name, x: shooter.x, y: shooter.y, shots: scene.enemyBullets.countActive(true) };
+						}
+					}
+				}
+				return { name: shooter.name, x: shooter.x, y: shooter.y, shots: -1 };
+			}, i);
+			if (fired.shots !== 1) {
+				stuck.push(`${fired.name} (${fired.shots === -1 ? 'sees no open spot' : 'did not fire'})`);
+				continue;
+			}
+			await frames(page, 20); // ~0.33 s at 120 px/s: about 40 px
+			const flown = await inScene(page, (scene, from) => {
+				const [bullet] = scene.enemyBullets.getMatching('active', true) as Sprite[];
+				return bullet ? Math.hypot(bullet.x - from.x, bullet.y - from.y) : -1;
+			}, fired);
+			if (flown < 30) stuck.push(`${fired.name} (${flown === -1 ? 'bullet died' : `${flown.toFixed(0)} px`})`);
+		}
+		expect(stuck).toEqual([]);
+	});
+}
