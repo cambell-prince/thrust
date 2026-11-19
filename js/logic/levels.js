@@ -14,12 +14,12 @@ export const SHIP_START_MIN_Y = 40;
 export const SHIP_START_MARGIN = 40;
 
 export function isLastLevel(index) {
-	return index === LEVELS.length - 1;
+	return index >= LEVELS.length - 1;
 }
 
-/** The level after `index`, or the first level after the last. */
+/** The level after `index`; the first level after the last or for an index that is not a level. */
 export function nextLevelIndex(index) {
-	return isLastLevel(index) ? 0 : index + 1;
+	return Number.isInteger(index) && index >= 0 && index <= LEVELS.length - 2 ? index + 1 : 0;
 }
 
 /** The 0-based level index from a URL search string's 1-based `level`; 0 when missing or invalid. */
@@ -38,11 +38,16 @@ export function levelIndexFromSearch(search) {
  * `habitat` is the Tiled rectangle's `{ x, y, width }`.
  */
 export function shipStartPosition(habitat, mapWidth) {
-	let x = habitat.x - SHIP_START_BESIDE;
-	if (x < SHIP_START_MARGIN) {
-		x = habitat.x + habitat.width + SHIP_START_BESIDE;
+	const left = habitat.x - SHIP_START_BESIDE;
+	const right = habitat.x + habitat.width + SHIP_START_BESIDE;
+	const clamp = (value) => Math.min(Math.max(value, SHIP_START_MARGIN), mapWidth - SHIP_START_MARGIN);
+	const onHabitat = (value) => value >= habitat.x && value <= habitat.x + habitat.width;
+	const [first, other] = left < SHIP_START_MARGIN ? [right, left] : [left, right];
+	let x = clamp(first);
+	if (onHabitat(x) && !onHabitat(clamp(other))) {
+		// The clamp pushed the start onto the habitat: use the other side.
+		x = clamp(other);
 	}
-	x = Math.min(Math.max(x, SHIP_START_MARGIN), mapWidth - SHIP_START_MARGIN);
 	const y = Math.max(SHIP_START_MIN_Y, habitat.y - SHIP_START_ABOVE);
 	return { x, y };
 }
