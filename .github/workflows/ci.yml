@@ -1,0 +1,108 @@
+name: CI
+
+# Tests and builds every push and pull request. A push to master that passes
+# is then deployed to the demo site (demo.saygoweb.com/thrust) on aws1.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # node --check on js/thrust.js, then tests/*.test.js (which include a
+      # throwaway production build).
+      - run: npm test
+
+      - run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to demo
+    needs: test
+    # Only master deploys; a manual run on master redeploys it.
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Holds the secrets. It can also require approval or be limited to master.
+    environment:
+      name: demo
+      url: http://demo.saygoweb.com/thrust/
+    # One deploy at a time, never cancelled mid-rsync.
+    concurrency:
+      group: deploy-demo
+      cancel-in-progress: false
+    env:
+      # The domain user on aws1 logs in directly, so no sudo on the server.
+      # Its home is /var/www/virtual/saygoweb.com/, so the path is relative to that.
+      DEPLOY_USER: ${{ vars.DEPLOY_USER || 'vu2006' }}
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST || 'aws1.saygoweb.com' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || './demo/htdocs/thrust/' }}
+      DEPLOY_SUDO_USER: ''
+    steps:
+      # For scripts/deploy.sh only; what ships is the tested build below.
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::Set the DEPLOY_KEY secret in the demo environment"
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          # Fail here, and say why, rather than as "Permission denied (publickey)".
+          if ! ssh-keygen -y -P '' -f ~/.ssh/deploy_key >/dev/null; then
+            echo "::error::DEPLOY_KEY must be the whole private key file (not the .pub), with no passphrase."
+            exit 1
+          fi
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::DEPLOY_KNOWN_HOSTS is not set; trusting the host key ssh-keyscan returns"
+            ssh-keyscan -t rsa,ecdsa,ed25519 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts
+          fi
+
+      # rsync splits --rsh itself and does no tilde expansion, hence $HOME.
+      - name: Deploy
+        run: |
+          DEPLOY_SSH="ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=20" \
+            ./scripts/deploy.sh
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
