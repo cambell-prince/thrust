@@ -40,8 +40,11 @@ Layout:
   - `objectsWithGid` and `objectSpawnPosition`: Tiled object placement
   - `shouldUpright`: landing
   - `reversePatrol`: collectables turning at walls
+  - `Mission` and `canUnload`: cargo, completion and landing at the habitat
+  - `NON_SOLID_TILES` (in `tiled.js`): the tiles-1 indices that are scenery, not wall
   Put new rules there when they can be separated from Phaser.
-- `js/hud/Scoreboard.js` draws the HUD from `ShipStatus` with `setScrollFactor(0)`. Call `scoreboard.refresh()` after changing the status.
+- `js/hud/Scoreboard.js` draws the HUD from `ShipStatus` and `Mission` (`delivered/total`, then ` +aboard`) with `setScrollFactor(0)`. Call `scoreboard.refresh()` after changing the status or the mission.
+- Picking up a dude scores nothing; it scores `SHIP_SCORE_RESCUE` when it walks into the habitat. Landing upright beside the habitat unloads the dudes aboard one at a time, and delivering every dude shows the mission-complete banner, after which SPACE (or 5 s) restarts the scene.
 - Colliders and overlaps are registered once in `addColliders()`, not every frame. Arcade calls back with a lone sprite first and a group member second, whatever order they are passed in, so the code passes the sprite first.
 - **An overlap against a tilemap layer tests every tile, empty ones included.** The bullet-vs-wall overlaps therefore take a process callback that returns `tile.collides`. Colliders filter tiles themselves.
 - Bullets and explosions are **pools**: `group.get()`, then `enableBody(true, x, y, true, true)` to fire and `disableBody(true, true)` to kill. A bullet that leaves the world is killed in `update()`. An enemy that is hit is `destroy()`ed, not disabled, so it can't be picked as a shooter.
@@ -50,7 +53,7 @@ Layout:
 ### Levels (Tiled)
 
 - `public/assets/level1.tmx` is the Tiled source and `public/assets/level1.json` is its export, which the game loads. Both are committed, so edit the `.tmx` in Tiled and re-export. Keep the two in sync.
-- Layers: `Walls` (a tile layer; collision is set with `setCollisionByExclusion(NON_SOLID_TILES)`, a list that must include `-1` for empty cells), `Enemy` (objects with gid 69 become `arrow` sprites) and `Collectables` (objects with gid 71 become `dude` sprites). Objects are placed by hand with `spawnFromObjects()`, not `map.createFromObjects`, to keep Phaser 2's placement and avoid needing tileset images for the `enemies` and `collectables` tilesets.
+- Layers: `Walls` (a tile layer; collision is set with `setCollisionByExclusion(NON_SOLID_TILES)`, a list that must include `-1` for empty cells), `Enemy` (objects with gid 69 become `arrow` sprites) `Collectables` (objects with gid 71 become `dude` sprites) and `Habitat` (one rectangle object, no gid: the habitat image stands on its bottom edge, and the landing check measures against its sides). Objects are placed by hand with `spawnFromObjects()`, not `map.createFromObjects`, to keep Phaser 2's placement and avoid needing tileset images for the `enemies` and `collectables` tilesets.
 - Gameplay tuning comes from **map properties** (`fuelExpense`, `lifeExpense`, `enemyShootTime`), read once into `scene.tuning` with `numberProperty()`. That function accepts both Tiled's old object-of-strings format and its newer array format. Several hard-coded constants are marked `// TODO map.properties` and are meant to move there.
 
 ### Assets

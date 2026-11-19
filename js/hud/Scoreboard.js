@@ -9,10 +9,11 @@ const GAUGES = {
 	fuel: { x: 236, y: 10, width: 140, height: 6, color: 0xff3300 },
 };
 
-/** The camera-fixed HUD: life and fuel gauges, mission label and score. */
+/** The camera-fixed HUD: life and fuel gauges, the mission count (delivered/total, +aboard) and score. */
 export class Scoreboard {
-	constructor(scene, status) {
+	constructor(scene, status, mission) {
 		this.status = status;
+		this.mission = mission;
 		this.graphics = scene.add.graphics();
 		const labels = [
 			scene.add.text(10, 7, 'LIFE', TEXT_STYLE),
@@ -20,18 +21,21 @@ export class Scoreboard {
 			scene.add.text(390, 7, 'MISSION', TEXT_STYLE),
 			scene.add.text(580, 7, 'SCORE', TEXT_STYLE),
 		];
+		this.missionText = scene.add.text(445, 7, '', TEXT_STYLE);
 		this.scoreText = scene.add.text(630, 7, '0', TEXT_STYLE);
-		for (const item of [this.graphics, ...labels, this.scoreText]) {
+		for (const item of [this.graphics, ...labels, this.missionText, this.scoreText]) {
 			item.setScrollFactor(0).setDepth(100);
 		}
 		this.refresh();
 	}
 
-	/** Redraw from the current status. Call after changing fuel, life or score. */
+	/** Redraw from the current status and mission. Call after changing fuel, life, score or cargo. */
 	refresh() {
 		this.graphics.clear();
 		this.drawGauge(GAUGES.life, this.status.life);
 		this.drawGauge(GAUGES.fuel, this.status.fuel);
+		const { delivered, total, aboard } = this.mission;
+		this.missionText.setText(`${delivered}/${total}` + (aboard > 0 ? ` +${aboard}` : ''));
 		this.scoreText.setText(String(this.status.score));
 	}
 

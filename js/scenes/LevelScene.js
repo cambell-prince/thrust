@@ -3,12 +3,11 @@ import { Scoreboard } from '../hud/Scoreboard.js';
 import { Cooldown } from '../logic/cooldown.js';
 import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.js';
 import { numberProperty } from '../logic/mapProperties.js';
+import { canUnload, Mission } from '../logic/mission.js';
 import { PATROL_SPEED, reversePatrol } from '../logic/patrol.js';
 import { ShipStatus } from '../logic/shipStatus.js';
-import { objectSpawnPosition, objectsWithGid } from '../logic/tiled.js';
+import { NON_SOLID_TILES, objectSpawnPosition, objectsWithGid } from '../logic/tiled.js';
 
-// Tile indices in tiles-1 that are scenery rather than wall (-1 is an empty cell).
-const NON_SOLID_TILES = [-1, 13, 14, 15, 16, 46, 47, 48, 49, 50, 51];
 const ENEMY_GID = 69;
 const COLLECTABLE_GID = 71;
 
@@ -22,6 +21,11 @@ const BULLET_POOL = 30;
 
 const SHIP_SCORE_ENEMY = 100; // TODO map.properties
 const SHIP_SCORE_RESCUE = 500;
+
+const UNLOAD_INTERVAL = 600; // ms between dudes leaving the ship
+const UNLOAD_WALK_SPEED = PATROL_SPEED * 2; // px/s, walking to the habitat door
+const RESTART_DELAY = 5000; // ms the mission-complete banner shows before restarting
+const BANNER_DEPTH = 200; // above the HUD (100)
 
 export class LevelScene extends Phaser.Scene {
 	constructor() {
@@ -38,6 +42,7 @@ export class LevelScene extends Phaser.Scene {
 		this.load.image('enemyBullet', 'enemy-bullet.png');
 		this.load.image('arrow', 'longarrow2.png');
 		this.load.image('tiles-1', 'tiles-1.png');
+		this.load.image('habitat', 'habitat.png');
 		this.load.tilemapTiledJSON('level1', 'level1.json');
 	}
 
@@ -54,14 +59,21 @@ export class LevelScene extends Phaser.Scene {
 		// The ship is created before the walls so that the walls draw over it.
 		this.createShip();
 		this.createLevel();
+		this.createHabitat();
 
 		this.shipBullets = this.createBulletPool('bullet');
 		this.enemies = this.createEnemies();
 		this.enemyBullets = this.createBulletPool('enemyBullet');
 		this.collectables = this.createCollectables();
+		this.mission = new Mission(this.collectables.getLength());
+		this.unloadTick = new Cooldown(UNLOAD_INTERVAL);
+		this.levelComplete = false;
+		this.restarting = false;
+		this.walkingDudes = 0;
+		this.banner = undefined;
 		this.explosions = this.add.group({ defaultKey: 'kaboom', maxSize: 10 });
 
-		this.scoreboard = new Scoreboard(this, this.status);
+		this.scoreboard = new Scoreboard(this, this.status, this.mission);
 
 		this.cursors = this.input.keyboard.createCursorKeys();
 		this.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -107,6 +119,15 @@ export class LevelScene extends Phaser.Scene {
 			lifeExpense: numberProperty(props, 'lifeExpense', 20),
 			enemyShootTime: numberProperty(props, 'enemyShootTime', 2500),
 		};
+	}
+
+	/** The habitat image, standing on the bottom edge of the Tiled `Habitat` rectangle. */
+	createHabitat() {
+		const [box] = this.map.getObjectLayer('Habitat').objects;
+		const doorX = box.x + box.width / 2;
+		const floorY = box.y + box.height;
+		this.habitat = this.add.image(doorX, floorY, 'habitat').setOrigin(0.5, 1);
+		this.habitatZone = { x: box.x, width: box.width, doorX, floorY };
 	}
 
 	createBulletPool(key) {
@@ -164,7 +185,7 @@ export class LevelScene extends Phaser.Scene {
 	}
 
 	update(time) {
-		if (this.ship.active) {
+		if (this.ship.active && !this.levelComplete) {
 			this.steer(time);
 			if (this.fireKey.isDown && this.shipFire.ready(time)) {
 				this.shipShoot(time);
@@ -172,9 +193,94 @@ export class LevelScene extends Phaser.Scene {
 			if (this.enemyFire.ready(time)) {
 				this.enemyShoot(time);
 			}
+			if (this.mission.hasCargo && this.unloadTick.ready(time) && this.landedAtHabitat()) {
+				this.unloadDude();
+				this.unloadTick.trigger(time);
+			}
 		}
 		this.killStrayBullets(this.shipBullets);
 		this.killStrayBullets(this.enemyBullets);
+	}
+
+	landedAtHabitat() {
+		const { body } = this.ship;
+		return canUnload({
+			onFloor: body.onFloor(),
+			angle: this.ship.angle,
+			speed: body.speed,
+			shipX: body.center.x,
+			habitat: this.habitatZone,
+		});
+	}
+
+	/** One dude climbs out, walks to the habitat door and goes in, scoring the rescue. */
+	unloadDude() {
+		this.mission.unloadOne();
+		this.scoreboard.refresh();
+		const { doorX, floorY } = this.habitatZone;
+		const startX = this.ship.body.center.x;
+		const dude = this.add.sprite(startX, floorY, 'dude', 4).setOrigin(0.5, 1);
+		dude.play(doorX >= startX ? 'dude-right' : 'dude-left');
+		this.tweens.add({
+			targets: dude,
+			x: doorX,
+			duration: (Math.abs(doorX - startX) / UNLOAD_WALK_SPEED) * 1000,
+			onComplete: () => {
+				dude.destroy();
+				this.status.changeScore(SHIP_SCORE_RESCUE);
+				this.scoreboard.refresh();
+				if (this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
+					this.completeLevel();
+				}
+			},
+		});
+		this.walkingDudes += 1;
+		dude.once(Phaser.GameObjects.Events.DESTROY, () => { this.walkingDudes -= 1; });
+	}
+
+	dudesWalking() {
+		return this.walkingDudes > 0;
+	}
+
+	/** Freeze play, show the mission-complete banner, and restart on SPACE or after RESTART_DELAY. */
+	completeLevel() {
+		if (this.levelComplete) {
+			return;
+		}
+		this.levelComplete = true;
+		const { ship } = this;
+		ship.setVelocity(0, 0).setAcceleration(0).setAngularVelocity(0);
+		ship.body.setAllowGravity(false);
+		ship.setFrame(SHIP_FRAME.IDLE);
+		for (const bullet of this.enemyBullets.getMatching('active', true)) {
+			bullet.disableBody(true, true);
+		}
+
+		const { width, height } = this.scale;
+		const style = { fontFamily: 'Arial', fontSize: '32px', color: '#ffd900', align: 'center' };
+		const small = { ...style, fontSize: '18px', color: '#ffffff' };
+		const backdrop = this.add.rectangle(0, 0, 360, 150, 0x000000, 0.7).setStrokeStyle(2, 0xffd900);
+		const lines = [
+			this.add.text(0, -40, 'MISSION COMPLETE', style).setOrigin(0.5),
+			this.add.text(0, 5, `SCORE ${this.status.score}`, small).setOrigin(0.5),
+			this.add.text(0, 40, 'PRESS SPACE', small).setOrigin(0.5),
+		];
+		this.banner = this.add.container(width / 2, height / 2, [backdrop, ...lines])
+			.setScrollFactor(0)
+			.setDepth(BANNER_DEPTH);
+
+		// A fresh press only: a fire key already held when the level ends must not skip the banner.
+		// Phaser emits no keydown-SPACE for auto-repeats of a registered key (fireKey) that is down.
+		this.input.keyboard.once('keydown-SPACE', () => this.restartLevel());
+		this.time.delayedCall(RESTART_DELAY, () => this.restartLevel());
+	}
+
+	restartLevel() {
+		if (this.restarting) {
+			return;
+		}
+		this.restarting = true;
+		this.scene.restart();
 	}
 
 	steer(time) {
@@ -316,9 +422,10 @@ export class LevelScene extends Phaser.Scene {
 		}
 	}
 
+	/** Take a dude aboard. They score when they walk into the habitat. */
 	rescue(dude) {
-		dude.disableBody(true, true); // TODO tween into the ship and tween the points
-		this.status.changeScore(SHIP_SCORE_RESCUE);
+		dude.disableBody(true, true);
+		this.mission.pickUp();
 		this.scoreboard.refresh();
 	}
 }
