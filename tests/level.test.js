@@ -1,5 +1,5 @@
 // level1.json is the Tiled export the game reads; check the parts create() depends on.
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

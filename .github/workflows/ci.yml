@@ -19,7 +19,7 @@ jobs:
   test:
     name: Test & Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -30,11 +30,22 @@ jobs:
 
       - run: npm ci
 
-      # node --check on js/thrust.js, then tests/*.test.js (which include a
-      # throwaway production build).
+      # Vitest: logic unit tests, asset and level checks, and a throwaway
+      # production build.
       - run: npm test
 
       - run: npm run build
+
+      # Playwright: plays the built game in headless Chromium.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
         with:

@@ -4,3 +4,5 @@
 /dist/
 *.tgz
 *.log
+/test-results/
+/playwright-report/
