@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "maps": "./scripts/export-maps.sh"
+    "maps": "./scripts/export-maps.sh",
+    "sfx": "node scripts/make-sfx.js"
   },
   "repository": {
     "type": "git",
