@@ -23,6 +23,14 @@ describe('progression', () => {
 		expect(nextLevelIndex(0)).toBe(1);
 		expect(nextLevelIndex(LEVELS.length - 1)).toBe(0);
 	});
+
+	it('treats an index past the last level as the last, and wraps any bad index to the first', () => {
+		expect(isLastLevel(5)).toBe(true);
+		expect(nextLevelIndex(5)).toBe(0);
+		expect(nextLevelIndex(-1)).toBe(0);
+		expect(nextLevelIndex(0.5)).toBe(0);
+		expect(nextLevelIndex(NaN)).toBe(0);
+	});
 });
 
 describe('levelIndexFromSearch', () => {
@@ -53,8 +61,16 @@ describe('shipStartPosition', () => {
 
 	it('keeps the start inside the map', () => {
 		expect(shipStartPosition({ x: 128, y: 100, width: 48 }, 1024).y).toBe(SHIP_START_MIN_Y);
-		const rightEdge = { x: 1000, y: 288, width: 48 };
 		expect(shipStartPosition({ x: 20, y: 288, width: 1000 }, 1024).x).toBe(1024 - SHIP_START_MARGIN);
-		expect(shipStartPosition(rightEdge, 1024).x).toBe(1000 - SHIP_START_BESIDE);
+		// left -28 is under the margin; right 20 + 130 + 48 = 198 is over 200 - 40, so the upper clamp applies.
+		expect(shipStartPosition({ x: 20, y: 288, width: 130 }, 200).x).toBe(200 - SHIP_START_MARGIN);
+	});
+
+	it('tries the other side when the clamped start lands on the habitat', () => {
+		expect(shipStartPosition({ x: 60, y: 288, width: 940 }, 1024).x).toBe(40);
+	});
+
+	it('keeps the clamped start when neither side is off the habitat', () => {
+		expect(shipStartPosition({ x: 35, y: 288, width: 960 }, 1024).x).toBe(1024 - SHIP_START_MARGIN);
 	});
 });

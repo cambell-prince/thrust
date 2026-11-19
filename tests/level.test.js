@@ -1,5 +1,5 @@
 // Each level's JSON is the Tiled export the game reads; check the parts create() depends on.
-import { describe, test } from 'vitest';
+import { describe, test as baseTest } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,11 @@ const solid = (gid) => Number.isInteger(gid) && gid > 0 && !NON_SOLID_TILES.incl
 
 describe.each(LEVELS)('$key', ({ key, file }) => {
 	const path = root + 'public/assets/' + file;
-	const map = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { layers: [] };
+	const exists = existsSync(path);
+	const map = exists ? JSON.parse(readFileSync(path, 'utf8')) : { layers: [] };
+	// A missing map is one clear failure; the other tests of that level are skipped.
+	const test = (name, fn) => (exists || name === 'the map file exists' ? baseTest(name, fn) : baseTest.skip(name, fn));
+	test.skipIf = (cond) => (name, fn) => (cond || !exists ? baseTest.skip(name, fn) : baseTest(name, fn));
 	const layer = (name) => map.layers.find((l) => l.name === name);
 	const wallGid = (row, col) => layer('Walls').data[row * layer('Walls').width + col];
 
@@ -91,6 +95,7 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		const groundRow = (box.y + box.height) / map.tileheight;
 		const first = Math.floor(box.x / map.tilewidth) - 5;
 		const last = Math.floor((box.x + box.width - 1) / map.tilewidth) + 5;
+		assert.ok(first >= 0 && last < walls.width, 'the ledge columns are outside the map');
 		for (let col = first; col <= last; col++) {
 			assert.ok(solid(walls.data[groundRow * walls.width + col]), `no ledge at column ${col}`);
 			for (let row = groundRow - 3; row < groundRow; row++) {
@@ -104,21 +109,33 @@ describe.each(LEVELS)('$key', ({ key, file }) => {
 		const { tilewidth: tw, tileheight: th } = map;
 		const [box] = layer('Habitat').objects;
 		const start = shipStartPosition(box, walls.width * tw);
+		// level1's gaps are 3 tiles wide and are flown today; later levels keep every passage 4 wide.
+		const boxSize = key === 'level1' ? 3 : 4;
 		const boxes = reachableBoxes({
 			data: walls.data, width: walls.width, height: walls.height, solid,
 			start: { col: Math.floor(start.x / tw), row: Math.floor(start.y / th) },
+			box: boxSize,
 		});
 		assert.ok(boxes.size > 0, 'the ship start is inside rock');
 		const cells = [...boxes].map((k) => k.split(',').map(Number));
 		const groundRow = (box.y + box.height) / th;
 		const landing = cells.some(([c, r]) => {
-			const centreX = (c + 1.5) * tw;
-			return r + 3 === groundRow && centreX >= box.x - HABITAT_RANGE && centreX <= box.x + box.width + HABITAT_RANGE;
+			const centreX = (c + boxSize / 2) * tw;
+			if (r + boxSize !== groundRow) {
+				return false;
+			}
+			for (let col = c; col < c + boxSize; col++) {
+				if (!solid(wallGid(groundRow, col))) {
+					return false;
+				}
+			}
+			return centreX >= box.x - HABITAT_RANGE && centreX <= box.x + box.width + HABITAT_RANGE;
 		});
 		assert.ok(landing, 'no room to land beside the habitat');
 		for (const dude of layer('Collectables').objects.filter((o) => o.gid === 71)) {
-			const left = dude.x, right = dude.x + 32, top = dude.y - 48, bottom = dude.y;
-			const touches = cells.some(([c, r]) => c * tw < right && (c + 3) * tw > left && r * th < bottom && (r + 3) * th > top);
+			// The dude's physics body: 20x32 at offset (5, 16) of the 32x48 sprite placed at (x, y - 48).
+			const left = dude.x + 5, right = dude.x + 25, top = dude.y - 32, bottom = dude.y;
+			const touches = cells.some(([c, r]) => c * tw < right && (c + boxSize) * tw > left && r * th < bottom && (r + boxSize) * th > top);
 			assert.ok(touches, `can't reach the dude at (${dude.x}, ${dude.y})`);
 		}
 	});
