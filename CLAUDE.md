@@ -15,8 +15,8 @@ Vite handles the dev server and build (Node >= 22.12). There is no linter.
 - `npm run package` builds and writes `thrust-<version>.tgz` from `dist/`.
 - `npm test` runs Vitest on `tests/**/*.test.js`. That covers:
   - unit tests for `js/logic/`, in `tests/unit/`
-  - every file `LevelScene` loads exists under `public/assets/`
-  - `level1.json` has the layers, gids and numeric properties the game uses
+  - every file `LevelScene` loads (including every map in `LEVELS`) exists under `public/assets/`
+  - every level's map has the layers, gids and numeric properties the game uses, and can be flown (`tests/level.test.js`)
   - a production build (into a temp dir) uses relative paths only and bundles Phaser 4.2
 
   To run one file: `npx vitest run tests/unit/cooldown.test.js`.
@@ -31,8 +31,8 @@ Layout:
 
 ## Architecture
 
-- `js/main.js` creates the `Phaser.Game`: `Phaser.AUTO` (WebGL; Canvas is deprecated in v4), 800×600, Arcade physics with gravity y=40, and one scene. It also sets `window.thrust = game`, which the e2e tests (and console debugging) use to reach `game.scene.getScene('Level')`.
-- `js/scenes/LevelScene.js` holds the whole game: loading, building the level, colliders, input and the rules. Game state lives on the scene (`ship`, `walls`, `map`, `enemies`, `shipBullets`, `enemyBullets`, `collectables`, `explosions`, `status`, `scoreboard`).
+- `js/main.js` creates the `Phaser.Game`: `Phaser.AUTO` (WebGL; Canvas is deprecated in v4), 800×600, Arcade physics with gravity y=40. It adds the one scene, `Level`, with `{ levelIndex }` from `?level=N` (1-based; missing or invalid means level 1). It also sets `window.thrust = game`, which the e2e tests (and console debugging) use to reach `game.scene.getScene('Level')`.
+- `js/scenes/LevelScene.js` holds the whole game: loading, building the level, colliders, input and the rules. The scene takes `{ levelIndex, score }` in `init(data)` and plays `LEVELS[levelIndex]`, carrying `score` over (fuel and life start full). Game state lives on the scene (`levelIndex`, `ship`, `walls`, `map`, `enemies`, `shipBullets`, `enemyBullets`, `collectables`, `explosions`, `status`, `scoreboard`).
 - `js/logic/` is plain JS with no Phaser import, so it can be unit-tested in Node:
   - `ShipStatus`: fuel, life and score, clamped to 0..100
   - `Cooldown`: fire rate and fuel burn
@@ -41,10 +41,11 @@ Layout:
   - `shouldUpright`: landing
   - `reversePatrol`: collectables turning at walls
   - `Mission` and `canUnload`: cargo, completion and landing at the habitat
+  - `levels`: `LEVELS` (play order), progression (`isLastLevel`, `nextLevelIndex`), `levelIndexFromSearch` and `shipStartPosition`
   - `NON_SOLID_TILES` (in `tiled.js`): the tiles-1 indices that are scenery, not wall
   Put new rules there when they can be separated from Phaser.
-- `js/hud/Scoreboard.js` draws the HUD from `ShipStatus` and `Mission` (`delivered/total`, then ` +aboard`) with `setScrollFactor(0)`. Call `scoreboard.refresh()` after changing the status or the mission.
-- Picking up a dude scores nothing; it scores `SHIP_SCORE_RESCUE` when it walks into the habitat. Landing upright beside the habitat unloads the dudes aboard one at a time, and delivering every dude shows the mission-complete banner, after which SPACE (or 5 s) restarts the scene.
+- `js/hud/Scoreboard.js` draws the HUD from `ShipStatus` and `Mission` (`MISSION <level number>`, `delivered/total`, then ` +aboard`) with `setScrollFactor(0)`. Call `scoreboard.refresh()` after changing the status or the mission.
+- Picking up a dude scores nothing; it scores `SHIP_SCORE_RESCUE` when it walks into the habitat. Landing upright beside the habitat unloads the dudes aboard one at a time, and delivering every dude shows the mission-complete banner. SPACE (or 5 s) then restarts the scene on the next level with the score (`goToLevel()`). After the last level the banner reads ALL MISSIONS COMPLETE and waits for SPACE, which starts a new game on level 1 with a score of 0.
 - Colliders and overlaps are registered once in `addColliders()`, not every frame. Arcade calls back with a lone sprite first and a group member second, whatever order they are passed in, so the code passes the sprite first.
 - **An overlap against a tilemap layer tests every tile, empty ones included.** The bullet-vs-wall overlaps therefore take a process callback that returns `tile.collides`. Colliders filter tiles themselves.
 - Bullets and explosions are **pools**: `group.get()`, then `enableBody(true, x, y, true, true)` to fire and `disableBody(true, true)` to kill. A bullet that leaves the world is killed in `update()`. An enemy that is hit is `destroy()`ed, not disabled, so it can't be picked as a shooter.
@@ -52,8 +53,10 @@ Layout:
 
 ### Levels (Tiled)
 
-- `public/assets/level1.tmx` is the Tiled source and `public/assets/level1.json` is its export, which the game loads. Both are committed, so edit the `.tmx` in Tiled and re-export. Keep the two in sync.
-- Layers: `Walls` (a tile layer; collision is set with `setCollisionByExclusion(NON_SOLID_TILES)`, a list that must include `-1` for empty cells), `Enemy` (objects with gid 69 become `arrow` sprites) `Collectables` (objects with gid 71 become `dude` sprites) and `Habitat` (one rectangle object, no gid: the habitat image stands on its bottom edge, and the landing check measures against its sides). Objects are placed by hand with `spawnFromObjects()`, not `map.createFromObjects`, to keep Phaser 2's placement and avoid needing tileset images for the `enemies` and `collectables` tilesets.
+- There are two levels, `level1` and `level2`, listed in play order in `LEVELS` (`js/logic/levels.js`). Each has a Tiled source `public/assets/levelN.tmx` and its export `levelN.json`, which the game loads. Both are committed, so edit the `.tmx` in Tiled and re-export. Keep the two in sync.
+- To add a level, add its `.tmx` and `.json` and a `LEVELS` entry. Every level needs the layers below, and `tests/level.test.js` checks each one, including that the dudes and habitat can be reached from the start (`tests/helpers/reachability.js`).
+- The ship starts beside the habitat (`shipStartPosition()`: left of it, or right when the left is near the map edge, and above it).
+- Layers (all required): `Walls` (a tile layer; collision is set with `setCollisionByExclusion(NON_SOLID_TILES)`, a list that must include `-1` for empty cells), `Enemy` (objects with gid 69 become `arrow` sprites) `Collectables` (objects with gid 71 become `dude` sprites) and `Habitat` (one rectangle object, no gid: the habitat image stands on its bottom edge, and the landing check measures against its sides). Objects are placed by hand with `spawnFromObjects()`, not `map.createFromObjects`, to keep Phaser 2's placement and avoid needing tileset images for the `enemies` and `collectables` tilesets.
 - Gameplay tuning comes from **map properties** (`fuelExpense`, `lifeExpense`, `enemyShootTime`), read once into `scene.tuning` with `numberProperty()`. That function accepts both Tiled's old object-of-strings format and its newer array format. Several hard-coded constants are marked `// TODO map.properties` and are meant to move there.
 
 ### Assets
