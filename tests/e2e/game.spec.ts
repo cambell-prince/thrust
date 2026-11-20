@@ -336,6 +336,71 @@ test('a ship destroyed while the last dude walks in does not complete the level'
 	expect(state).toEqual({ complete: false, banner: true, score: 1000 });
 });
 
+/** The game-over banner's lines, once it shows. */
+async function gameOverBanner(page: Page): Promise<string[]> {
+	await page.waitForFunction(() => window.thrust.scene.getScene<LevelScene>('Level').gameOverBanner, null, { timeout: 5_000 });
+	return inScene(page, (scene) => scene.gameOverBanner!.list.filter((o) => o.type === 'Text').map((t) => (t as Phaser.GameObjects.Text).text));
+}
+
+test('a destroyed ship shows GAME OVER, and R retries the level with the score it started with', async ({ page }) => {
+	const errors = await openGame(page, '?level=2');
+	await parkShip(page);
+	await inScene(page, (scene) => {
+		scene.carriedScore = 700; // as if carried over from level 1
+		scene.status.changeScore(800);
+		scene.status.setLife(20);
+		const bullet = scene.enemyBullets.get() as Sprite;
+		bullet.enableBody(true, scene.ship.body.center.x, scene.ship.body.center.y, true, true);
+		bullet.body.setVelocity(0, 0);
+	});
+
+	expect(await gameOverBanner(page)).toEqual(['GAME OVER', 'SHIP DESTROYED', 'SCORE 800', 'R  RETRY MISSION 2     N  NEW GAME']);
+	expect(await inScene(page, (scene) => ({ gameOver: scene.gameOver, complete: scene.levelComplete })))
+		.toEqual({ gameOver: 'SHIP DESTROYED', complete: false });
+
+	await page.keyboard.press('KeyR');
+	await page.waitForFunction(() => {
+		const scene = window.thrust.scene.getScene<LevelScene>('Level');
+		return scene.scoreboard && !scene.gameOver && scene.ship?.active;
+	}, null, { timeout: 5_000 });
+	expect(await inScene(page, (scene) => ({
+		level: scene.levelIndex, score: scene.status.score, life: scene.status.life, fuel: scene.status.fuel, banner: scene.gameOverBanner === undefined,
+	}))).toEqual({ level: 1, score: 700, life: 100, fuel: 100, banner: true });
+	expect(errors).toEqual([]);
+});
+
+test('running out of fuel ends the game once the ship comes to rest, and N starts a new game', async ({ page }) => {
+	const errors = await openGame(page, '?level=2');
+	await inScene(page, (scene) => { scene.status.changeScore(300); scene.status.setFuel(0); scene.enemyFire.trigger(scene.time.now, 1e9); });
+	await parkShip(page);
+	await page.waitForTimeout(300);
+	// In the air it is not over yet: the ship may still glide down to the habitat.
+	expect(await inScene(page, (scene) => scene.gameOver)).toBeNull();
+
+	// Landed beside the habitat with nobody aboard, there is nothing left to do without fuel.
+	await inScene(page, (scene) => scene.ship.body.setAllowGravity(true));
+	await landBesideHabitat(page);
+	expect(await gameOverBanner(page)).toEqual(['GAME OVER', 'OUT OF FUEL', 'SCORE 300', 'R  RETRY MISSION 2     N  NEW GAME']);
+
+	await page.keyboard.press('KeyN');
+	await page.waitForFunction(() => {
+		const scene = window.thrust.scene.getScene<LevelScene>('Level');
+		return scene.levelIndex === 0 && scene.scoreboard && !scene.gameOver;
+	}, null, { timeout: 5_000 });
+	expect(await inScene(page, (scene) => ({ score: scene.status.score, fuel: scene.status.fuel, mission: scene.scoreboard.missionLabel.text })))
+		.toEqual({ score: 0, fuel: 100, mission: 'MISSION 1' });
+	expect(errors).toEqual([]);
+});
+
+test('a ship out of fuel landed at the habitat still delivers its dudes', async ({ page }) => {
+	await openGame(page);
+	await rescueAll(page);
+	await inScene(page, (scene) => scene.status.setFuel(0));
+	await landBesideHabitat(page);
+	await expect.poll(() => inScene(page, (scene) => scene.levelComplete), { timeout: 15_000 }).toBe(true);
+	expect(await inScene(page, (scene) => scene.gameOver)).toBeNull();
+});
+
 test('taking off mid-unload keeps the remaining dudes aboard', async ({ page }) => {
 	await openGame(page);
 	await rescueAll(page);
