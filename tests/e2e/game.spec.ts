@@ -377,7 +377,9 @@ test('running out of fuel ends the game once the ship comes to rest, and N start
 	// In the air it is not over yet: the ship may still glide down to the habitat.
 	expect(await inScene(page, (scene) => scene.gameOver)).toBeNull();
 
+	// Landed beside the habitat with nobody aboard, there is nothing left to do without fuel.
 	await inScene(page, (scene) => scene.ship.body.setAllowGravity(true));
+	await landBesideHabitat(page);
 	expect(await gameOverBanner(page)).toEqual(['GAME OVER', 'OUT OF FUEL', 'SCORE 300', 'R  RETRY MISSION 2     N  NEW GAME']);
 
 	await page.keyboard.press('KeyN');
