@@ -3,10 +3,11 @@ import { GameAudio } from '../audio/GameAudio.ts';
 import { Scoreboard } from '../hud/Scoreboard.ts';
 import { MUSIC, musicKey, SOUNDS } from '../logic/audio.ts';
 import { Cooldown } from '../logic/cooldown.ts';
+import { gameOverReason, type GameOverReason } from '../logic/gameOver.ts';
 import { shouldUpright, UPRIGHT_ANGLE } from '../logic/landing.ts';
 import { ENEMY_SCALE, isLastLevel, LEVELS, nextLevelIndex, shipStartPosition } from '../logic/levels.ts';
 import { numberProperty, stringProperty, type TiledProperties } from '../logic/mapProperties.ts';
-import { canUnload, Mission } from '../logic/mission.ts';
+import { canUnload, LANDED_SPEED, Mission } from '../logic/mission.ts';
 import { PATROL_SPEED, reversePatrol } from '../logic/patrol.ts';
 import { ShipStatus } from '../logic/shipStatus.ts';
 import { NON_SOLID_TILES, objectSpawnPosition, objectsWithGid } from '../logic/tiled.ts';
@@ -70,6 +71,7 @@ const DEFAULT_SHIP_START = { x: 50, y: 80 }; // for a map without a habitat
 const UNLOAD_WALK_SPEED = PATROL_SPEED * 2; // px/s, walking to the habitat door
 const RESTART_DELAY = 5000; // ms the mission-complete banner shows before the next level starts
 const BANNER_DEPTH = 200; // above the HUD (100)
+const GAME_OVER_DELAY = 1000; // ms between the mission failing and the game-over banner, so the explosion shows
 
 export class LevelScene extends Phaser.Scene {
 	// Set in init() and create(), which Phaser calls before update().
@@ -98,6 +100,8 @@ export class LevelScene extends Phaser.Scene {
 	restarting = false;
 	walkingDudes = 0;
 	banner: Phaser.GameObjects.Container | undefined;
+	gameOver: GameOverReason | null = null;
+	gameOverBanner: Phaser.GameObjects.Container | undefined;
 	scoreboard!: Scoreboard;
 	audio!: GameAudio;
 	keyboard!: Phaser.Input.Keyboard.KeyboardPlugin;
@@ -162,6 +166,8 @@ export class LevelScene extends Phaser.Scene {
 		this.restarting = false;
 		this.walkingDudes = 0;
 		this.banner = undefined;
+		this.gameOver = null;
+		this.gameOverBanner = undefined;
 		this.explosions = this.add.group({ defaultKey: 'kaboom', maxSize: 10 });
 
 		this.scoreboard = new Scoreboard(this, this.status, this.mission, this.levelIndex + 1);
@@ -316,7 +322,10 @@ export class LevelScene extends Phaser.Scene {
 
 	override update(time: number): void {
 		let thrusting = false;
-		if (this.ship.active && !this.levelComplete) {
+		if (!this.levelComplete && !this.gameOver) {
+			this.checkGameOver();
+		}
+		if (this.ship.active && !this.levelComplete && !this.gameOver) {
 			thrusting = this.steer(time);
 			if (this.fireKey.isDown && this.shipFire.ready(time)) {
 				this.shipShoot(time);
@@ -369,7 +378,7 @@ export class LevelScene extends Phaser.Scene {
 				this.status.changeScore(SHIP_SCORE_RESCUE);
 				this.audio.dropOff();
 				this.scoreboard.refresh();
-				if (this.ship.active && this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
+				if (this.ship.active && !this.gameOver && this.mission.isComplete && this.mission.aboard === 0 && !this.dudesWalking()) {
 					this.completeLevel();
 				}
 			},
@@ -391,27 +400,12 @@ export class LevelScene extends Phaser.Scene {
 			return;
 		}
 		this.levelComplete = true;
-		const { ship } = this;
-		ship.setVelocity(0, 0).setAcceleration(0).setAngularVelocity(0);
-		ship.body.setAllowGravity(false);
-		ship.setFrame(SHIP_FRAME.IDLE);
-		for (const bullet of [...this.activeSprites(this.enemyBullets), ...this.activeSprites(this.shipBullets)]) {
-			bullet.disableBody(true, true);
-		}
-
-		const { width, height } = this.scale;
-		const style = { fontFamily: 'Arial', fontSize: '32px', color: '#ffd900', align: 'center' };
-		const small = { ...style, fontSize: '18px', color: '#ffffff' };
-		const backdrop = this.add.rectangle(0, 0, 440, 150, 0x000000, 0.7).setStrokeStyle(2, 0xffd900);
+		this.freezePlay();
 		const last = isLastLevel(this.levelIndex);
-		const lines = [
-			this.add.text(0, -40, last ? 'ALL MISSIONS COMPLETE' : 'MISSION COMPLETE', style).setOrigin(0.5),
-			this.add.text(0, 5, `SCORE ${this.status.score}`, small).setOrigin(0.5),
-			this.add.text(0, 40, last ? 'PRESS SPACE TO PLAY AGAIN' : `PRESS SPACE FOR LEVEL ${nextLevelIndex(this.levelIndex) + 1}`, small).setOrigin(0.5),
-		];
-		this.banner = this.add.container(width / 2, height / 2, [backdrop, ...lines])
-			.setScrollFactor(0)
-			.setDepth(BANNER_DEPTH);
+		this.banner = this.showBanner(last ? 'ALL MISSIONS COMPLETE' : 'MISSION COMPLETE', [
+			`SCORE ${this.status.score}`,
+			last ? 'PRESS SPACE TO PLAY AGAIN' : `PRESS SPACE FOR LEVEL ${nextLevelIndex(this.levelIndex) + 1}`,
+		]);
 
 		// A fresh press only: a fire key already held when the level ends must not skip the banner.
 		// Phaser emits no keydown-SPACE for auto-repeats of a registered key (fireKey) that is down.
@@ -420,6 +414,71 @@ export class LevelScene extends Phaser.Scene {
 		if (!last) {
 			this.time.delayedCall(RESTART_DELAY, () => this.goToLevel(next));
 		}
+	}
+
+	/** Stop the ship where it is and clear the bullets in flight. */
+	freezePlay(): void {
+		const { ship } = this;
+		ship.setVelocity(0, 0).setAcceleration(0).setAngularVelocity(0);
+		ship.body.setAllowGravity(false);
+		ship.setFrame(SHIP_FRAME.IDLE);
+		for (const bullet of [...this.activeSprites(this.enemyBullets), ...this.activeSprites(this.shipBullets)]) {
+			bullet.disableBody(true, true);
+		}
+	}
+
+	/** A camera-fixed banner in the middle of the screen: a yellow title over white lines. */
+	showBanner(title: string, lines: string[]): Phaser.GameObjects.Container {
+		const style = { fontFamily: 'Arial', fontSize: '32px', color: '#ffd900', align: 'center' };
+		const small = { ...style, fontSize: '18px', color: '#ffffff' };
+		const lineHeight = 35;
+		const height = 80 + lines.length * lineHeight;
+		const top = -height / 2;
+		const backdrop = this.add.rectangle(0, 0, 440, height, 0x000000, 0.7).setStrokeStyle(2, 0xffd900);
+		const texts = [
+			this.add.text(0, top + 35, title, style).setOrigin(0.5),
+			...lines.map((line, i) => this.add.text(0, top + 80 + i * lineHeight, line, small).setOrigin(0.5)),
+		];
+		return this.add.container(this.scale.width / 2, this.scale.height / 2, [backdrop, ...texts])
+			.setScrollFactor(0)
+			.setDepth(BANNER_DEPTH);
+	}
+
+	/** End the mission when the ship is destroyed, or out of fuel and at rest with no delivery left to finish. */
+	checkGameOver(): void {
+		const { body } = this.ship;
+		const reason = gameOverReason({
+			life: this.status.life,
+			fuel: this.status.fuel,
+			shipAtRest: this.ship.active && body.onFloor() && body.speed <= LANDED_SPEED && !this.shipTween.isPlaying(),
+			deliveryPending: this.dudesWalking() || (this.mission.hasCargo && this.landedAtHabitat()),
+		});
+		if (reason) {
+			this.failMission(reason);
+		}
+	}
+
+	/**
+	 * Freeze play and, after GAME_OVER_DELAY, show the game-over banner. R retries the level with the
+	 * score it started with; N starts a new game on level 1 with a score of 0.
+	 */
+	failMission(reason: GameOverReason): void {
+		if (this.gameOver || this.levelComplete) {
+			return;
+		}
+		this.gameOver = reason;
+		if (this.ship.active) {
+			this.freezePlay();
+		}
+		this.time.delayedCall(GAME_OVER_DELAY, () => {
+			this.gameOverBanner = this.showBanner('GAME OVER', [
+				reason,
+				`SCORE ${this.status.score}`,
+				`R  RETRY MISSION ${this.levelIndex + 1}     N  NEW GAME`,
+			]);
+			this.keyboard.once('keydown-R', () => this.goToLevel({ levelIndex: this.levelIndex, score: this.carriedScore }));
+			this.keyboard.once('keydown-N', () => this.goToLevel({ levelIndex: 0, score: 0 }));
+		});
 	}
 
 	/** Restart the scene on the level in `data` (`{ levelIndex, score }`), once. */
@@ -584,6 +643,7 @@ export class LevelScene extends Phaser.Scene {
 		this.status.setLife(this.status.life - this.tuning.lifeExpense);
 		this.scoreboard.refresh();
 		if (this.status.isDead) {
+			this.explosion(this.ship.x, this.ship.y);
 			this.ship.disableBody(true, true);
 		}
 	}
